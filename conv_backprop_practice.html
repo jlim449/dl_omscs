@@ -118,7 +118,21 @@ function solBack(X,K,s,p,G,what){const B=back(X,K,s,p,G);let h='';
   if(what.includes('y'))h+=`<span class="lbl">y = window ⊙ K, summed:</span><br>`+B.Y.map((row,r)=>row.map((v,c)=>`y(${r},${c}) = ${mk(B.k1,B.k2,(a,b)=>`${fp(B.Xp[s*r+a][s*c+b])}·${fp(K[a][b])}`).flat().join(' + ')} = <span class="res">${fmt(v)}</span>`).join('<br>')).join('<br>')+'<br>';
   if(what.includes('dW'))h+=`<span class="lbl">dW(a,b) = Σ d_k · (pixel at offset (a,b) in window k):</span><br>`+B.dK.map((row,a)=>row.map((v,b)=>{const t=[];for(let r=0;r<B.Ho;r++)for(let q=0;q<B.Wo;q++)t.push(`${fp(G[r][q])}·${fp(B.Xp[s*r+a][s*q+b])}`);return `dW(${a},${b}) = ${t.join(' + ')} = <span class="res">${fmt(v)}</span>`;}).join('<br>')).join('<br>')+'<br>';
   if(what.includes('dX'))h+=`<span class="lbl">dX(i,j) = Σ over windows covering the pixel of d_k · (kernel weight on it)${p?' (padded coords shown = i+p, j+p; padding cropped)':''}:</span><br>`+B.dX.map((row,i)=>row.map((v,j)=>{const ts=B.tX[i+p][j+p];return `dX(${i},${j}) = ${ts.map(o=>`${fp(G[o.r][o.q])}·${fp(K[o.a][o.b])}`).join(' + ')||'0'} = <span class="res">${fmt(v)}</span>`;}).join('<br>')).join('<br>');
+  if(what.includes('dX'))h+=flipBlock(K,s,p,G,B);
   return h;}
+function flipBlock(K,s,p,G,B){const k1=K.length,k2=K[0].length,Ho=G.length,Wo=G[0].length,Hp=B.H+2*p,Wp=B.W+2*p;
+  const Zh=Hp+k1-1,Zw=Wp+k2-1;const Z=mk(Zh,Zw,()=>0);for(let r=0;r<Ho;r++)for(let c=0;c<Wo;c++)Z[k1-1+s*r][k2-1+s*c]=G[r][c];
+  const Kr=mk(k1,k2,(a,b)=>K[k1-1-a][k2-1-b]);
+  const D=mk((Ho-1)*s+1,(Wo-1)*s+1,(i,j)=>i%s===0&&j%s===0?G[i/s][j/s]:0);
+  let h=`<br><br><span class="lbl">━━ Method 2: dilate + pad + rotate 180° + cross-correlate (S2 B4) ━━</span><br>`;
+  h+=`<span class="lbl">① dilate dout:</span> insert ${s-1} zero${s-1==1?'':'s'} between entries → ${D.length}×${D[0].length}${s===1?' (stride 1: nothing to insert)':''}<br>${mini(D)}<br>`;
+  h+=`<span class="lbl">② pad with k−1 = ${k1-1} ring${k1-1==1?'':'s'} of zeros${Zh!==D.length+2*(k1-1)?` (+ ${Zh-D.length-2*(k1-1)} extra zero row/col at the bottom/right so the output matches X's size)`:''} → ${Zh}×${Zw}</span><br>${mini(Z)}<br>`;
+  h+=`<span class="lbl">③ rotate W by 180°:</span> ${mini(K)} → ${mini(Kr)}<br>`;
+  h+=`<span class="lbl">④ cross-correlate with stride 1:</span> output side = ${Zh}−${k1}+1 = ${Hp}${p?` (this is the padded size; crop ${p} per side → ${B.H})`:` = size of X`}<br>`;
+  const out=mk(Hp,Wp,(u,v)=>{let t=0;for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)t+=Z[u+a][v+b]*Kr[a][b];return t;});
+  for(let i=0;i<B.H;i++)for(let j=0;j<B.W;j++){const u=i+p,v=j+p;const win=mk(k1,k2,(a,b)=>Z[u+a][v+b]);const t=[];for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)if(win[a][b]!==0)t.push(`${fp(win[a][b])}·${fp(Kr[a][b])}`);
+    h+=`dX(${i},${j}): window rows ${u}–${u+k1-1}, cols ${v}–${v+k2-1} = ${win.map(r=>'['+r.map(fmt).join(' ')+']').join('')} → ${t.join(' + ')||'0'} = <span class="res">${fmt(out[u][v])}</span> ${out[u][v]===B.dX[i][j]?'✓':'✗'}<br>`;}
+  return h+`<span class="lbl">Same answer as Method 1. At stride 2 the zeros between dout entries are why each window picks up at most one d·w term (no overlap).</span>`;}
 function solCell(X,K,s,p,G,what,r,c){const B=back(X,K,s,p,G);
   if(what==='dW'){const t=[];for(let q=0;q<B.Ho;q++)for(let w=0;w<B.Wo;w++)t.push(`${fp(G[q][w])}·${fp(B.Xp[s*q+r][s*w+c])}`);return `dW(${r},${c}) = ${t.join(' + ')} = <span class="res">${fmt(B.dK[r][c])}</span>`;}
   const ts=B.tX[r+p][c+p];return `dX(${r},${c}) = ${ts.map(o=>`${fp(G[o.r][o.q])}·${fp(K[o.a][o.b])}`).join(' + ')||'0'} = <span class="res">${fmt(B.dX[r][c])}</span>  (${ts.length} term${ts.length==1?'':'s'})`;}
