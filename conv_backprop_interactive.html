@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Conv backprop — S2 theory ↔ PDF matrix example</title>
+<style>
+  :root{--bd:#d0d4dc;--mut:#667085;--acc:#2563eb;--bg:#f7f8fa}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;background:var(--bg);color:#1d2433;font-size:14px}
+  header{background:#111827;color:#fff;padding:14px 22px}
+  header h1{margin:0;font-size:19px}
+  header p{margin:4px 0 0;color:#cbd5e1;font-size:13px}
+  .controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:10px 22px;background:#fff;border-bottom:1px solid var(--bd)}
+  .controls label{font-size:13px;color:#374151}
+  select,input[type=number]{padding:3px 6px;border:1px solid var(--bd);border-radius:5px;font-size:13px}
+  button{padding:4px 10px;border:1px solid var(--bd);background:#fff;border-radius:5px;cursor:pointer;font-size:13px}
+  button:hover{background:#eef2ff}
+  .shapes{padding:8px 22px;background:#eef2ff;font-size:13px;border-bottom:1px solid var(--bd)}
+  .shapes b{color:#1e3a8a}
+  nav{display:flex;gap:2px;padding:0 22px;background:#fff;border-bottom:1px solid var(--bd)}
+  nav button{border:none;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px;font-size:14px}
+  nav button.on{border-bottom-color:var(--acc);color:var(--acc);font-weight:600}
+  main{padding:16px 22px 60px;max-width:1400px}
+  .tab{display:none}.tab.on{display:block}
+  .row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .card{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 8px;font-size:16px}
+  .card h3{margin:10px 0 6px;font-size:14px}
+  .gwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .gwrap .cap{font-size:12px;color:var(--mut);text-align:center}
+  .grid{display:grid;gap:3px}
+  .cell{position:relative;min-height:46px;border:1px solid var(--bd);border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;font-variant-numeric:tabular-nums;padding:2px;transition:background .12s}
+  .cell .tag{position:absolute;top:1px;left:3px;font-size:10px;color:var(--mut)}
+  .cell .v{font-size:15px;font-weight:600}
+  .cell .sym{font-size:10px;color:#374151;line-height:1.25;text-align:center}
+  .cell.pad{background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px);color:#9ca3af}
+  .cell.sel{outline:3px solid #111827;outline-offset:-1px}
+  .cell.win{outline:3px dashed #f59e0b;outline-offset:-1px}
+  .cell.dim{opacity:.35}
+  .cell:hover{filter:brightness(.95)}
+  .op{font-size:22px;color:var(--mut);align-self:center}
+  .formula{font-family:"STIX Two Math","Cambria Math",Georgia,serif;font-size:16px;background:#f9fafb;border-left:4px solid var(--acc);padding:8px 12px;margin:8px 0;overflow-x:auto}
+  .terms{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;line-height:1.7;overflow-x:auto}
+  .terms .lbl{color:#94a3b8}
+  .terms .res{color:#fde68a;font-weight:700}
+  .bridge{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 14px;margin:10px 0}
+  .bridge b{color:#9a3412}
+  table.t{border-collapse:collapse;font-size:13px}
+  table.t th,table.t td{border:1px solid var(--bd);padding:5px 9px;text-align:center}
+  table.t th{background:#f3f4f6}
+  table.master td{cursor:pointer;min-width:62px}
+  table.master th.wcol{cursor:pointer}
+  .small{font-size:12px;color:var(--mut)}
+  .chip{display:inline-block;padding:0 6px;border-radius:4px;color:#fff;font-weight:600;font-size:12px}
+  textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;width:150px;height:84px;border:1px solid var(--bd);border-radius:5px;padding:4px}
+  .stepbar{display:flex;align-items:center;gap:10px;margin:6px 0 10px}
+  .stepbar input[type=range]{width:260px}
+  .warn{color:#b91c1c;font-size:12px}
+  details summary{cursor:pointer;color:var(--acc)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Backprop through a conv layer: S2 theory ↔ the PDF matrix example</h1>
+  <p>Click any cell. Everything shown uses the same numbers, in PDF notation (d<sub>k</sub>, w<sub>i</sub>) and in S2 notation (G(r,c), k(a,b)).</p>
+</header>
+
+<div class="controls">
+  <label>Preset
+    <select id="preset">
+      <option value="pdf1">PDF handout: 4×4 X, 2×2 W, stride 1</option>
+      <option value="pdf2">PDF page 2: stride 2</option>
+      <option value="s2">S2 worked example: 3×3 x, right/bottom pad</option>
+    </select>
+  </label>
+  <label>Stride <select id="stride"><option>1</option><option>2</option></select></label>
+  <label>Pad (right/bottom) <select id="pad"><option>0</option><option>1</option></select></label>
+  <label>Names
+    <select id="names">
+      <option value="pdf">PDF: d₁…d₉, w₁…w₄</option>
+      <option value="s2">S2: G(r,c), k(a,b)</option>
+    </select>
+  </label>
+  <label>dout from
+    <select id="gmode">
+      <option value="mse">L = ½Σ(y − t)², so dout = y − t</option>
+      <option value="custom">custom G (edit below)</option>
+    </select>
+  </label>
+  <label id="tlab">t = <input type="number" id="tval" value="30" style="width:60px"></label>
+  <details><summary>Edit X / W / G</summary>
+    <div class="row" style="gap:10px;margin-top:6px">
+      <div><div class="small">X (rows on new lines)</div><textarea id="taX"></textarea></div>
+      <div><div class="small">W / kernel</div><textarea id="taK"></textarea></div>
+      <div><div class="small">custom G = dout</div><textarea id="taG"></textarea></div>
+      <div><button id="apply">Apply</button><div id="edWarn" class="warn"></div></div>
+    </div>
+  </details>
+</div>
+<div class="shapes" id="shapes"></div>
+
+<nav id="nav">
+  <button data-t="map" class="on">0 · The bridge</button>
+  <button data-t="fwd">1 · Forward</button>
+  <button data-t="dout">2 · Where dout comes from</button>
+  <button data-t="dw">3 · ∂L/∂W (Part A)</button>
+  <button data-t="dx">4 · ∂L/∂X (Part B)</button>
+  <button data-t="flip">5 · Flip + cross-correlate (B4)</button>
+</nav>
+
+<main>
+<!-- ======================= MAP ======================= -->
+<section class="tab on" id="t-map">
+  <div class="card">
+    <h2>Notation map</h2>
+    <table class="t">
+      <tr><th>PDF handout</th><th>S2 note</th><th>meaning</th></tr>
+      <tr><td>X (image)</td><td>x(r,c)</td><td>input to the conv layer</td></tr>
+      <tr><td>W = [w₁ w₂; w₃ w₄]</td><td>k(0,0) k(0,1); k(1,0) k(1,1)</td><td>kernel. w<sub>i</sub> with i = a·k₂ + b + 1</td></tr>
+      <tr><td>y₁ … y₉ (reading order)</td><td>y(r,c)</td><td>output. y<sub>k</sub> with k = r·W<sub>out</sub> + c + 1</td></tr>
+      <tr><td>dout = d₁ … d₉</td><td>G = ∂L/∂y, G(r,c)</td><td>upstream gradient, same shape as y</td></tr>
+      <tr><td>receptive field / window k</td><td>x(r+a, c+b) for a,b in the kernel</td><td>the patch that feeds y(r,c)</td></tr>
+      <tr><td>∂L/∂W</td><td>∂L/∂k (Part A)</td><td>for the weight update, shape of W</td></tr>
+      <tr><td>∂L/∂X</td><td>∂L/∂x (Part B)</td><td>passed to the previous layer, shape of X</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>The key idea: the same double sum, two loop orders</h2>
+    <p>Near the current weights the loss changes by Σ<sub>r,c</sub> G(r,c)·y(r,c). Substituting the forward pass makes every term a <b>(d, w, x) triple</b>:</p>
+    <div class="formula">Σ<sub>r,c</sub> Σ<sub>a,b</sub> &nbsp;G(r,c) · k(a,b) · x(r+a, c+b)</div>
+    <table class="t">
+      <tr><th></th><th>PDF rule: loop over windows (scatter)</th><th>S2 formula: loop over the variable (gather)</th></tr>
+      <tr><td><b>∂L/∂W</b></td><td>for each window k: &nbsp; ∂L/∂W += d<sub>k</sub> · window<sub>k</sub></td><td>for each k(a′,b′): &nbsp; Σ<sub>r,c</sub> G(r,c) · x(r+a′, c+b′)</td></tr>
+      <tr><td><b>∂L/∂X</b></td><td>for each window k: &nbsp; ∂L/∂X[patch k] += d<sub>k</sub> · W</td><td>for each x(r′,c′): &nbsp; Σ<sub>a,b</sub> G(r′−a, c′−b) · k(a,b)</td></tr>
+    </table>
+    <p class="small">Fix (a,b) and sum over (r,c): ∂L/∂k. Fix the pixel r+a=r′, c+b=c′ and sum over everything that lands on it: ∂L/∂x. The PDF and S2 compute the same sum. The PDF goes window by window; S2 collects the terms for one variable at a time.</p>
+  </div>
+
+  <div class="card">
+    <h2>The master table: the PDF's y-equations, one row per window</h2>
+    <p class="small">Row k is <code>y_k = (pixel)·w₁ + (pixel)·w₂ + …</code> from the PDF. Each cell is the input pixel that weight multiplies in that window, i.e. ∂y<sub>k</sub>/∂w<sub>i</sub>.
+      <b>Click a column header</b> to get ∂L/∂w (multiply the column by d and sum: Part A).
+      <b>Click a cell</b> to get ∂L/∂x for that pixel (collect every cell holding the same pixel: Part B).</p>
+    <div class="row">
+      <div id="masterTbl"></div>
+      <div style="flex:1;min-width:360px"><div id="masterOut"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= FORWARD ======================= -->
+<section class="tab" id="t-fwd">
+  <div class="card">
+    <h2>Forward pass: S2 setup ↔ PDF section 1</h2>
+    <div class="formula" id="fwdFormula"></div>
+    <p class="small">Click an output cell. The colored input cells are its receptive field; each color is the weight that pixel is multiplied by.</p>
+    <div class="row" id="fwdGrids"></div>
+    <div class="terms" id="fwdTerms"></div>
+    <div class="bridge"><b>Bridge:</b> the window is ∂y/∂W. The forward pass is linear in the weights, so the window entry under w<sub>i</sub> is ∂y<sub>k</sub>/∂w<sub>i</sub>. S2 writes this as ∂y(r,c)/∂k(a′,b′) = x(r+a′, c+b′). The PDF gets to it by writing out the window. Part A builds on this fact.</div>
+  </div>
+</section>
+
+<!-- ======================= DOUT ======================= -->
+<section class="tab" id="t-dout">
+  <div class="card">
+    <h2>y vs dout: both have the same shape but mean different things</h2>
+    <div class="row" id="doutGrids"></div>
+    <div class="terms" id="doutTerms"></div>
+    <div class="bridge"><b>Bridge:</b> S2 calls dout the "upstream gradient ∂L/∂y (known)". The conv layer receives it from the layers after it and does not compute it. Here it comes from the loss chosen in the toolbar. Switch to "custom G" to type it in yourself; S2's worked example does this.</div>
+  </div>
+</section>
+
+<!-- ======================= dW ======================= -->
+<section class="tab" id="t-dw">
+  <div class="card">
+    <h2>View A: S2 gather. Pick one weight and collect from every output (A1–A3)</h2>
+    <div class="formula" id="dwFormula"></div>
+    <p class="small">Click a cell of ∂L/∂W. The highlighted input pixels are x(s·r+a′, s·c+b′), the pixels that weight multiplied. Each one carries the d it is paired with. At stride 1 they form a block the shape of dout, shifted by (a′,b′). That is S2's "stride the upstream gradient across the input" (A3, cross-correlation of X with dout).</p>
+    <div class="row" id="dwA"></div>
+    <div class="terms" id="dwATerms"></div>
+  </div>
+  <div class="card">
+    <h2>View B: PDF scatter. Go window by window and add d<sub>k</sub>·window<sub>k</sub></h2>
+    <div class="stepbar"><button id="dwPrev">◀</button><input type="range" id="dwStep" min="0" value="0"><button id="dwNext">▶</button><span id="dwStepLbl"></span></div>
+    <div class="row" id="dwB"></div>
+    <div class="bridge" id="dwBridge"></div>
+  </div>
+</section>
+
+<!-- ======================= dX ======================= -->
+<section class="tab" id="t-dx">
+  <div class="card">
+    <h2>View A: S2 gather. Pick one input pixel: which outputs did it touch? (B1–B3)</h2>
+    <div class="formula" id="dxFormula"></div>
+    <p class="small">Click a pixel of ∂L/∂X. The highlighted dout cells are the outputs whose window covers the pixel (the k₁×k₂ block from S2 slide 15). Each is colored by the kernel weight that touched the pixel, k(a,b) = ∂y/∂x.</p>
+    <div class="row" id="dxA"></div>
+    <div class="terms" id="dxATerms"></div>
+  </div>
+  <div class="card">
+    <h2>View B: PDF scatter. Put d<sub>k</sub>·W back into window k's patch; overlaps add</h2>
+    <div class="stepbar"><button id="dxPrev">◀</button><input type="range" id="dxStep" min="0" value="0"><button id="dxNext">▶</button><span id="dxStepLbl"></span></div>
+    <div class="row" id="dxB"></div>
+    <div class="bridge" id="dxBridge"></div>
+  </div>
+</section>
+
+<!-- ======================= FLIP ======================= -->
+<section class="tab" id="t-flip">
+  <div class="card">
+    <h2>Implementation (S2 B4, PDF section 5): pad dout, rotate W by 180°, cross-correlate</h2>
+    <div class="formula">∂L/∂x(r′,c′) = Σ<sub>a,b</sub> G(r′−a, c′−b)·k(a,b) &nbsp;=&nbsp; Σ<sub>a,b</sub> G<sub>pad</sub>(r′+a, c′+b)·k<sub>rot</sub>(a,b)</div>
+    <p class="small">Click an output cell. The dashed window on padded dout slides like a forward pass. The rotated kernel puts w₄ top-left, so each d meets the same weight it met in View A. <span id="flipNote"></span></p>
+    <div class="row" id="flipGrids"></div>
+    <div class="terms" id="flipTerms"></div>
+    <div class="bridge"><b>Duality:</b> the forward pass is cross-correlation, so the gradient w.r.t. the input is a <i>convolution</i> of dout with W. The minus sign in G(r′−a, c′−b) is the flip. A convolution is implemented as a cross-correlation with a rotated kernel, so the backward pass reuses the forward code.</div>
+  </div>
+</section>
+</main>
+
+<script>
+const WCOL=['#ef4444','#22c55e','#3b82f6','#a855f7','#f97316','#06b6d4','#ec4899','#84cc16','#14b8a6'];
+const tint=(i,a=.28)=>{const h=WCOL[i%WCOL.length];const n=parseInt(h.slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`;};
+const PRESETS={
+  pdf1:{X:[[1,2,3,4],[2,3,4,5],[5,6,7,8],[7,8,9,0]],K:[[1,2],[3,4]],s:1,p:0,mode:'mse',t:30},
+  pdf2:{X:[[1,2,3,4],[2,3,4,5],[5,6,7,8],[7,8,9,0]],K:[[1,2],[3,4]],s:2,p:0,mode:'mse',t:30},
+  s2:{X:[[1,2,3],[4,5,6],[7,8,9]],K:[[1,0],[0,-1]],s:1,p:1,mode:'custom',t:30,G:[[1,2,0],[0,1,3],[2,0,1]]}
+};
+const S={X:null,K:null,s:1,p:0,mode:'mse',t:30,Gc:null,names:'pdf'};
+const UI={fwd:{r:0,c:0},dw:{a:0,b:0},dx:{i:1,j:1},dwStep:0,dxStep:0,master:{type:'w',a:0,b:0},tab:'map'};
+let D={};
+const $=id=>document.getElementById(id);
+const mk=(r,c,f)=>Array.from({length:r},(_,i)=>Array.from({length:c},(_,j)=>f(i,j)));
+
+function compute(){
+  const H=S.X.length,W=S.X[0].length,k1=S.K.length,k2=S.K[0].length,s=S.s,p=S.p,K=S.K;
+  const Hp=H+p,Wp=W+p;
+  const Xp=mk(Hp,Wp,(i,j)=>i<H&&j<W?S.X[i][j]:0);
+  const Ho=Math.floor((Hp-k1)/s)+1,Wo=Math.floor((Wp-k2)/s)+1;
+  const Y=mk(Ho,Wo,(r,c)=>{let v=0;for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)v+=Xp[s*r+a][s*c+b]*K[a][b];return v;});
+  let G,gWarn='';
+  if(S.mode==='custom'){
+    if(S.Gc&&S.Gc.length===Ho&&S.Gc.every(r=>r.length===Wo))G=S.Gc;
+    else{gWarn=`custom G must be ${Ho}×${Wo}; using y − t instead`;G=Y.map(r=>r.map(v=>v-S.t));}
+  }else G=Y.map(r=>r.map(v=>v-S.t));
+  const dK=mk(k1,k2,(a,b)=>{let v=0;for(let r=0;r<Ho;r++)for(let c=0;c<Wo;c++)v+=G[r][c]*Xp[s*r+a][s*c+b];return v;});
+  const tX=mk(Hp,Wp,()=>[]);
+  for(let r=0;r<Ho;r++)for(let c=0;c<Wo;c++)for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)tX[s*r+a][s*c+b].push({r,c,a,b});
+  const dX=tX.map(row=>row.map(ts=>ts.reduce((acc,t)=>acc+G[t.r][t.c]*K[t.a][t.b],0)));
+  D={H,W,k1,k2,s,p,Hp,Wp,Xp,Ho,Wo,Y,G,dK,tX,dX,gWarn,N:Ho*Wo};
+}
+
+const sub=n=>`<sub>${n}</sub>`;
+const dN=(r,c)=>S.names==='pdf'?`d${sub(r*D.Wo+c+1)}`:`G(${r},${c})`;
+const wN=(a,b)=>S.names==='pdf'?`w${sub(a*D.k2+b+1)}`:`k(${a},${b})`;
+const yN=(r,c)=>S.names==='pdf'?`y${sub(r*D.Wo+c+1)}`:`y(${r},${c})`;
+const dAlt=(r,c)=>S.names==='pdf'?`G(${r},${c})`:`d${sub(r*D.Wo+c+1)}`;
+const wAlt=(a,b)=>S.names==='pdf'?`k(${a},${b})`:`w${sub(a*D.k2+b+1)}`;
+const fmt=v=>Number.isInteger(v)?String(v):v.toFixed(2);
+const fp=v=>v<0?`(${fmt(v)})`:fmt(v);
+const isPad=(i,j)=>i>=D.H||j>=D.W;
+const chip=(i,html)=>`<span class="chip" style="background:${WCOL[i%WCOL.length]}">${html}</span>`;
+const wi=(a,b)=>a*D.k2+b;
+
+function gridEl(rows,cols,cell,opt={}){
+  const g=document.createElement('div');g.className='grid';
+  g.style.gridTemplateColumns=`repeat(${cols},${opt.w||54}px)`;
+  for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){
+    const o=cell(i,j)||{};const c=document.createElement('div');
+    c.className='cell '+(o.cls||'');c.innerHTML=o.html??'';
+    if(o.bg)c.style.background=o.bg;if(o.title)c.title=o.title;
+    if(opt.h)c.style.minHeight=opt.h+'px';
+    if(opt.click)c.onclick=()=>opt.click(i,j);
+    g.appendChild(c);
+  }
+  return g;
+}
+function wrap(cap,el){const w=document.createElement('div');w.className='gwrap';w.appendChild(el);const c=document.createElement('div');c.className='cap';c.innerHTML=cap;w.appendChild(c);return w;}
+function opEl(t){const s=document.createElement('div');s.className='op';s.innerHTML=t;return s;}
+function fill(id,...els){const e=$(id);e.innerHTML='';els.forEach(x=>e.appendChild(x));}
+const cellHTML=(tag,v,sym)=>`<span class="tag">${tag}</span><span class="v">${v}</span>${sym?`<span class="sym">${sym}</span>`:''}`;
+function xCell(i,j,extra={}){return {html:cellHTML(`x(${i},${j})`,fmt(D.Xp[i][j]),extra.sym),cls:(isPad(i,j)?'pad ':'')+(extra.cls||''),bg:extra.bg,title:isPad(i,j)?'zero padding':''};}
+function kGrid(sel,click){return gridEl(D.k1,D.k2,(a,b)=>({html:cellHTML(wN(a,b),fmt(S.K[a][b])),bg:tint(wi(a,b),.35),cls:sel&&sel.a===a&&sel.b===b?'sel':''}),{click});}
+function gGrid(f,click){return gridEl(D.Ho,D.Wo,(r,c)=>{const o=f?f(r,c):{};return {html:cellHTML(dN(r,c),fmt(D.G[r][c]),o.sym),bg:o.bg,cls:o.cls};},{click});}
+
+function renderShapes(){
+  const st=D.s,ws=D.p?` (padded to ${D.Hp}×${D.Wp})`:'';
+  $('shapes').innerHTML=`Shapes (PDF page 2 quiz): X <b>${D.H}×${D.W}</b>${ws} · W <b>${D.k1}×${D.k2}</b> · stride <b>${st}</b> → y = dout <b>${D.Ho}×${D.Wo}</b> &nbsp;[⌊(${D.Hp}−${D.k1})/${st}⌋+1 = ${D.Ho}] · ∂L/∂W <b>${D.k1}×${D.k2}</b> (shape of W) · ∂L/∂X <b>${D.H}×${D.W}</b> (shape of X)`+(D.gWarn?` &nbsp;<span class="warn">${D.gWarn}</span>`:'');
+}
+
+/* ---------------- MAP / master table ---------------- */
+function renderMap(){
+  const M=UI.master;let h='<table class="t master"><tr><th>window / row</th><th>d</th>';
+  for(let a=0;a<D.k1;a++)for(let b=0;b<D.k2;b++){
+    const on=M.type==='w'&&M.a===a&&M.b===b;
+    h+=`<th class="wcol" data-a="${a}" data-b="${b}" style="background:${tint(wi(a,b),on?.6:.25)}">${wN(a,b)}<br><span class="small">= ${fmt(S.K[a][b])}</span></th>`;
+  }
+  h+='<th>y</th></tr>';
+  for(let r=0;r<D.Ho;r++)for(let c=0;c<D.Wo;c++){
+    h+=`<tr><td>${yN(r,c)} = …</td><td>${dN(r,c)} = ${fmt(D.G[r][c])}</td>`;
+    for(let a=0;a<D.k1;a++)for(let b=0;b<D.k2;b++){
+      const i=D.s*r+a,j=D.s*c+b;
+      let bg='';
+      if(M.type==='w'&&M.a===a&&M.b===b)bg=tint(wi(a,b),.45);
+      if(M.type==='x'&&M.i===i&&M.j===j)bg=tint(wi(a,b),.6);
+      h+=`<td data-i="${i}" data-j="${j}" style="background:${bg}">${fmt(D.Xp[i][j])}<br><span class="small">x(${i},${j})</span></td>`;
+    }
+    h+=`<td>${fmt(D.Y[r][c])}</td></tr>`;
+  }
+  h+='</table>';$('masterTbl').innerHTML=h;
+  $('masterTbl').querySelectorAll('th.wcol').forEach(e=>e.onclick=()=>{UI.master={type:'w',a:+e.dataset.a,b:+e.dataset.b};renderMap();});
+  $('masterTbl').querySelectorAll('td[data-i]').forEach(e=>e.onclick=()=>{UI.master={type:'x',i:+e.dataset.i,j:+e.dataset.j};renderMap();});
+  let o='';
+  if(M.type==='w'){
+    const {a,b}=M;const sy=[],nu=[];
+    for(let r=0;r<D.Ho;r++)for(let c=0;c<D.Wo;c++){const x=D.Xp[D.s*r+a][D.s*c+b];sy.push(`${fmt(x)}·${dN(r,c)}`);nu.push(`${fp(x)}·${fp(D.G[r][c])}`);}
+    o=`<h3>Column ${chip(wi(a,b),wN(a,b))}: Part A</h3>
+      <div class="formula">∂L/∂${wN(a,b)} = Σ<sub>k</sub> d<sub>k</sub> · (column entry) &nbsp;=&nbsp; Σ<sub>r,c</sub> G(r,c)·x(${D.s>1?D.s+'r':'r'}+${a}, ${D.s>1?D.s+'c':'c'}+${b})</div>
+      <div class="terms"><span class="lbl">PDF :</span> ${sy.join(' + ')}<br><span class="lbl">nums:</span> ${nu.join(' + ')}<br><span class="lbl">=    </span> <span class="res">${fmt(D.dK[a][b])}</span></div>
+      <p class="small">Weight sharing: the column has one entry per window, so ∂L/∂w sums over every output (S2 A1/A2). A column is a whole slice of X shifted by (${a},${b}).</p>`;
+  }else{
+    const {i,j}=M;const ts=D.tX[i][j];const sy=[],nu=[],s2=[];
+    ts.forEach(t=>{sy.push(`${dN(t.r,t.c)}·${wN(t.a,t.b)}`);nu.push(`${fp(D.G[t.r][t.c])}·${fp(S.K[t.a][t.b])}`);s2.push(`G(${i}−${t.a},${j}−${t.b})·k(${t.a},${t.b})`);});
+    o=`<h3>Pixel x(${i},${j}) = ${fmt(D.Xp[i][j])}: Part B</h3>
+      <p class="small">It shows up in <b>${ts.length}</b> row(s). Each time it sits under a different weight, so the term is d<sub>row</sub>·w<sub>column</sub>.</p>
+      <div class="formula">∂L/∂x(${i},${j}) = Σ<sub>cells holding this pixel</sub> d<sub>row</sub>·w<sub>col</sub> &nbsp;=&nbsp; Σ<sub>a,b</sub> G(${i}−a, ${j}−b)·k(a,b)</div>
+      <div class="terms"><span class="lbl">PDF :</span> ${sy.join(' + ')||'0 (no window covers this pixel)'}<br>${D.s===1?`<span class="lbl">S2  :</span> ${s2.join(' + ')}<br>`:''}<span class="lbl">nums:</span> ${nu.join(' + ')||'0'}<br><span class="lbl">=    </span> <span class="res">${fmt(D.dX[i][j])}</span></div>`;
+  }
+  $('masterOut').innerHTML=o;
+}
+
+/* ---------------- FORWARD ---------------- */
+function renderFwd(){
+  const F=UI.fwd;if(F.r>=D.Ho||F.c>=D.Wo){F.r=0;F.c=0;}
+  const s=D.s,sr=s>1?`${s}r`:'r',sc=s>1?`${s}c`:'c';
+  $('fwdFormula').innerHTML=`S2: y(r,c) = Σ<sub>a,b</sub> x(${sr}+a, ${sc}+b)·k(a,b) &nbsp;&nbsp;|&nbsp;&nbsp; PDF: "each receptive field ⊙ kernel, then add"`;
+  const inWin=(i,j)=>{const a=i-s*F.r,b=j-s*F.c;return a>=0&&a<D.k1&&b>=0&&b<D.k2?{a,b}:null;};
+  const xg=gridEl(D.Hp,D.Wp,(i,j)=>{const w=inWin(i,j);return xCell(i,j,{bg:w?tint(wi(w.a,w.b),.45):'',cls:w?'':'dim'});});
+  const yg=gridEl(D.Ho,D.Wo,(r,c)=>({html:cellHTML(yN(r,c),fmt(D.Y[r][c])),cls:r===F.r&&c===F.c?'sel':''}),{click:(r,c)=>{UI.fwd={r,c};renderFwd();}});
+  fill('fwdGrids',wrap('X (input)',xg),opEl('⋆'),wrap('W (kernel)',kGrid()),opEl('='),wrap('y: click a cell',yg));
+  const sy=[],nu=[],s2=[];
+  for(let a=0;a<D.k1;a++)for(let b=0;b<D.k2;b++){const x=D.Xp[s*F.r+a][s*F.c+b];sy.push(`${fmt(x)}·${wN(a,b)}`);nu.push(`${fp(x)}·${fp(S.K[a][b])}`);s2.push(`x(${s*F.r+a},${s*F.c+b})·k(${a},${b})`);}
+  const win=mk(D.k1,D.k2,(a,b)=>fmt(D.Xp[s*F.r+a][s*F.c+b])).map(r=>r.join(' ')).join('; ');
+  $('fwdTerms').innerHTML=`<span class="lbl">${yN(F.r,F.c)} = y(${F.r},${F.c})</span><br><span class="lbl">S2  :</span> ${s2.join(' + ')}<br><span class="lbl">PDF :</span> ${sy.join(' + ')}<br><span class="lbl">nums:</span> ${nu.join(' + ')} = <span class="res">${fmt(D.Y[F.r][F.c])}</span><br><span class="lbl">∂${yN(F.r,F.c)}/∂W = window = [${win}]</span>`;
+}
+
+/* ---------------- DOUT ---------------- */
+function renderDout(){
+  const yg=gridEl(D.Ho,D.Wo,(r,c)=>({html:cellHTML(yN(r,c),fmt(D.Y[r][c]))}));
+  fill('doutGrids',wrap('y: forward output of this layer',yg),opEl('→ loss →'),wrap('dout = ∂L/∂y (from later layers)',gGrid()));
+  if(S.mode==='custom'&&!D.gWarn)$('doutTerms').innerHTML=`<span class="lbl">custom G entered directly (as in S2 §1 worked example). The layer just receives it.</span>`;
+  else{const l=[];for(let r=0;r<D.Ho;r++)for(let c=0;c<D.Wo;c++)l.push(`${dN(r,c)} = ${yN(r,c)} − ${S.t} = ${fmt(D.Y[r][c])} − ${S.t} = ${fmt(D.G[r][c])}`);
+    $('doutTerms').innerHTML=`<span class="lbl">L = ½ Σ (y_k − ${S.t})²  ⇒  ∂L/∂y_k = y_k − ${S.t}</span><br>`+l.join('<br>');}
+}
+
+/* ---------------- dW ---------------- */
+function renderDW(){
+  const A=UI.dw;if(A.a>=D.k1||A.b>=D.k2)UI.dw={a:0,b:0};
+  const {a,b}=UI.dw,s=D.s,col=wi(a,b);
+  $('dwFormula').innerHTML=`S2: ∂L/∂k(a′,b′) = Σ<sub>r,c</sub> G(r,c) · x(${s>1?s+'r':'r'}+a′, ${s>1?s+'c':'c'}+b′) &nbsp;&nbsp;→&nbsp; selected ${chip(col,wN(a,b)+' = '+wAlt(a,b))}`;
+  const hit=(i,j)=>{const r=(i-a)/s,c=(j-b)/s;return Number.isInteger(r)&&Number.isInteger(c)&&r>=0&&r<D.Ho&&c>=0&&c<D.Wo?{r,c}:null;};
+  const xg=gridEl(D.Hp,D.Wp,(i,j)=>{const h=hit(i,j);return xCell(i,j,{bg:h?tint(col,.45):'',cls:h?'':'dim',sym:h?`× ${dN(h.r,h.c)}`:''});},{h:52});
+  const dk=gridEl(D.k1,D.k2,(p,q)=>({html:cellHTML('∂L/∂'+wN(p,q),fmt(D.dK[p][q])),bg:tint(wi(p,q),.35),cls:p===a&&q===b?'sel':''}),{click:(p,q)=>{UI.dw={a:p,b:q};renderDW();},w:70});
+  fill('dwA',wrap(`X: pixels multiplied by ${wN(a,b)}`,xg),opEl('⋆'),wrap('dout (all of it)',gGrid(()=>({bg:tint(col,.2)}))),opEl('='),wrap('∂L/∂W: click a cell',dk));
+  const sy=[],nu=[],s2=[];
+  for(let r=0;r<D.Ho;r++)for(let c=0;c<D.Wo;c++){const x=D.Xp[s*r+a][s*c+b];sy.push(`${dN(r,c)}·${fmt(x)}`);nu.push(`${fp(D.G[r][c])}·${fp(x)}`);s2.push(`G(${r},${c})·x(${s*r+a},${s*c+b})`);}
+  $('dwATerms').innerHTML=`<span class="lbl">S2  :</span> ${s2.join(' + ')}<br><span class="lbl">PDF :</span> ${sy.join(' + ')}<br><span class="lbl">nums:</span> ${nu.join(' + ')}<br><span class="lbl">=    </span><span class="res">${fmt(D.dK[a][b])}</span>`;
+
+  // View B
+  const N=D.N;const st=$('dwStep');st.max=N;if(UI.dwStep>N)UI.dwStep=N;st.value=UI.dwStep;const n=UI.dwStep;
+  $('dwStepLbl').textContent=n===0?'step 0: accumulator = 0':`added windows 1…${n} of ${N}`;
+  const cur=n>0?{r:Math.floor((n-1)/D.Wo),c:(n-1)%D.Wo}:null;
+  const acc=mk(D.k1,D.k2,()=>({v:0,t:[]}));
+  for(let m=0;m<n;m++){const r=Math.floor(m/D.Wo),c=m%D.Wo;for(let p=0;p<D.k1;p++)for(let q=0;q<D.k2;q++){acc[p][q].v+=D.G[r][c]*D.Xp[s*r+p][s*c+q];acc[p][q].t.push(`${fmt(D.Xp[s*r+p][s*c+q])}${dN(r,c)}`);}}
+  const xg2=gridEl(D.Hp,D.Wp,(i,j)=>{let w=null;if(cur){const p=i-s*cur.r,q=j-s*cur.c;if(p>=0&&p<D.k1&&q>=0&&q<D.k2)w={p,q};}return xCell(i,j,{bg:w?tint(wi(w.p,w.q),.45):'',cls:w?'win':''});});
+  const gg=gGrid((r,c)=>({cls:cur&&r===cur.r&&c===cur.c?'sel':'',bg:cur&&r===cur.r&&c===cur.c?'#fef3c7':''}));
+  const contrib=gridEl(D.k1,D.k2,(p,q)=>cur?{html:cellHTML(wN(p,q),fmt(D.G[cur.r][cur.c]*D.Xp[s*cur.r+p][s*cur.c+q]),`${dN(cur.r,cur.c)}·${fmt(D.Xp[s*cur.r+p][s*cur.c+q])}`),bg:tint(wi(p,q),.25)}:{html:'–'},{w:90,h:56});
+  const ag=gridEl(D.k1,D.k2,(p,q)=>({html:cellHTML('∂L/∂'+wN(p,q),fmt(acc[p][q].v),acc[p][q].t.slice(-4).join('+')+(acc[p][q].t.length>4?' …':'')),bg:tint(wi(p,q),.35),title:acc[p][q].t.join(' + ')}),{w:150,h:66,click:(p,q)=>{UI.dw={a:p,b:q};renderDW();}});
+  fill('dwB',wrap(cur?`window ${n} (dashed)`:'X',xg2),wrap('dout',gg),opEl('→'),wrap(cur?`d${sub(n)} · window${sub(n)}`:'contribution',contrib),opEl('Σ'),wrap('running ∂L/∂W (hover for all terms)',ag));
+  $('dwBridge').innerHTML=`<b>Bridge:</b> the top-left accumulator cell picks up one term per window, ${dN(0,0)}·(top-left pixel of window 1), ${dN(0,1)}·(top-left of window 2), and so on. Those top-left pixels are the highlighted slice in View A for ${wN(0,0)}. Step to ${N}/${N}: the ${D.k1}×${D.k2} matrix equals View A's cells [${D.dK.map(r=>r.map(fmt).join(', ')).join('; ')}]. The PDF fills all weights one window at a time; S2 fills one weight from all windows.`;
+}
+
+/* ---------------- dX ---------------- */
+function renderDX(){
+  if(UI.dx.i>=D.Hp||UI.dx.j>=D.Wp)UI.dx={i:0,j:0};
+  const {i,j}=UI.dx,s=D.s,ts=D.tX[i][j];
+  const tmap={};ts.forEach(t=>tmap[t.r+','+t.c]=t);
+  $('dxFormula').innerHTML=`S2: ∂L/∂x(r′,c′) = Σ<sub>a,b</sub> G(${s>1?'(r′−a)/'+s:'r′−a'}, ${s>1?'(c′−b)/'+s:'c′−b'}) · k(a,b) &nbsp;&nbsp;→&nbsp; selected x(${i},${j}): touched by <b>${ts.length}</b> window(s)`;
+  const xg=gridEl(D.Hp,D.Wp,(p,q)=>({html:cellHTML(`x(${p},${q})`,fmt(D.dX[p][q]),`${D.tX[p][q].length} term${D.tX[p][q].length===1?'':'s'}`),cls:(isPad(p,q)?'pad ':'')+(p===i&&q===j?'sel':''),title:isPad(p,q)?'padding: gradient computed but discarded':''}),{click:(p,q)=>{UI.dx={i:p,j:q};renderDX();},w:62,h:52});
+  const gg=gGrid((r,c)=>{const t=tmap[r+','+c];return t?{bg:tint(wi(t.a,t.b),.5),sym:`× ${wN(t.a,t.b)}`}:{cls:'dim'};});
+  const winsX=gridEl(D.Hp,D.Wp,(p,q)=>{const cov=ts.filter(t=>p-s*t.r>=0&&p-s*t.r<D.k1&&q-s*t.c>=0&&q-s*t.c<D.k2);const me=p===i&&q===j;return xCell(p,q,{cls:me?'sel':(cov.length?'':'dim'),bg:cov.length?`rgba(245,158,11,${Math.min(.15*cov.length,.6)})`:''});});
+  fill('dxA',wrap('∂L/∂X: click a pixel (hatched = padding)',xg),opEl('⇐'),wrap(`dout: outputs touched by x(${i},${j})`,gg),wrap('kernel',kGrid()),wrap(`X: windows covering x(${i},${j})<br>(darker = more overlap)`,winsX));
+  const sy=[],nu=[],s2=[];
+  ts.forEach(t=>{sy.push(`${dN(t.r,t.c)}·${wN(t.a,t.b)}`);nu.push(`${fp(D.G[t.r][t.c])}·${fp(S.K[t.a][t.b])}`);s2.push(s===1?`G(${i}−${t.a},${j}−${t.b})·k(${t.a},${t.b})`:`G(${t.r},${t.c})·k(${t.a},${t.b})`);});
+  $('dxATerms').innerHTML=`<span class="lbl">S2  :</span> ${s2.join(' + ')||'0'}<br><span class="lbl">PDF :</span> ${sy.join(' + ')||'0 (no window covers this pixel)'}<br><span class="lbl">nums:</span> ${nu.join(' + ')||'0'}<br><span class="lbl">=    </span><span class="res">${fmt(D.dX[i][j])}</span>`+(isPad(i,j)?'<br><span class="lbl">(this is a padding cell, so it is cropped away and never passed back)</span>':'')+`<br><span class="lbl">∂y/∂x(${i},${j}) for each touched output is the kernel weight sitting on the pixel (S2 B3)</span>`;
+
+  // View B
+  const N=D.N;const st=$('dxStep');st.max=N;if(UI.dxStep>N)UI.dxStep=N;st.value=UI.dxStep;const n=UI.dxStep;
+  $('dxStepLbl').textContent=n===0?'step 0: start from zeros':`placed windows 1…${n} of ${N}`;
+  const cur=n>0?{r:Math.floor((n-1)/D.Wo),c:(n-1)%D.Wo}:null;
+  const acc=mk(D.Hp,D.Wp,()=>({v:0,t:[]}));
+  for(let m=0;m<n;m++){const r=Math.floor(m/D.Wo),c=m%D.Wo;for(let a=0;a<D.k1;a++)for(let b=0;b<D.k2;b++){const T=acc[s*r+a][s*c+b];T.v+=D.G[r][c]*S.K[a][b];T.t.push(`${dN(r,c)}${wN(a,b)}`);}}
+  const ag=gridEl(D.Hp,D.Wp,(p,q)=>{let w=null;if(cur){const a=p-s*cur.r,b=q-s*cur.c;if(a>=0&&a<D.k1&&b>=0&&b<D.k2)w={a,b};}
+    return {html:cellHTML(`x(${p},${q})`,fmt(acc[p][q].v),acc[p][q].t.join('+')||'0'),cls:(isPad(p,q)?'pad ':'')+(w?'win':''),bg:w?tint(wi(w.a,w.b),.35):''};},{w:118,h:70,click:(p,q)=>{UI.dx={i:p,j:q};renderDX();}});
+  const gg2=gGrid((r,c)=>({cls:cur&&r===cur.r&&c===cur.c?'sel':'',bg:cur&&r===cur.r&&c===cur.c?'#fef3c7':''}));
+  const contrib=gridEl(D.k1,D.k2,(a,b)=>cur?{html:cellHTML(wN(a,b),fmt(D.G[cur.r][cur.c]*S.K[a][b]),`${dN(cur.r,cur.c)}·${wN(a,b)}`),bg:tint(wi(a,b),.25)}:{html:'–'},{w:80,h:56});
+  fill('dxB',wrap('dout',gg2),opEl('→'),wrap(cur?`d${sub(n)} · W`:'contribution',contrib),opEl('→'),wrap('running ∂L/∂X (dashed = patch of current window)',ag));
+  $('dxBridge').innerHTML=`<b>Bridge:</b> the number of terms in a cell equals the number of windows covering that pixel. ${s===1?'At stride 1 corners get 1 term, edges 2, the interior '+D.k1*D.k2+'.':'At stride 2 the windows do not overlap, so each pixel gets at most one term.'} The term list in each cell is S2's sum for that pixel; click a cell to open it in View A. The PDF builds ∂L/∂X by scattering window by window. S2 gathers, for each pixel, the outputs it touched. Both use the same d·w products.`;
+}
+
+/* ---------------- FLIP ---------------- */
+function renderFlip(){
+  const s=D.s,k1=D.k1,k2=D.k2,Hd=(D.Ho-1)*s+1,Wd=(D.Wo-1)*s+1;
+  const PH=D.Hp+k1-1,PW=D.Wp+k2-1;
+  const gp=(u,v)=>{const uu=u-(k1-1),vv=v-(k2-1);if(uu>=0&&vv>=0&&uu<Hd&&vv<Wd&&uu%s===0&&vv%s===0)return {r:uu/s,c:vv/s};return null;};
+  const Kr=(a,b)=>({a:k1-1-a,b:k2-1-b});
+  if(UI.dx.i>=D.Hp||UI.dx.j>=D.Wp)UI.dx={i:0,j:0};
+  const {i,j}=UI.dx;
+  $('flipNote').innerHTML=s>1?`At stride ${s}, dout is also <b>dilated</b>: ${s-1} zero(s) are inserted between its entries before padding.`:`dout is padded with k−1 = ${k1-1} ring(s) of zeros.`;
+  const pg=gridEl(PH,PW,(u,v)=>{const g=gp(u,v);const inW=u-i>=0&&u-i<k1&&v-j>=0&&v-j<k2;
+    if(!g)return {html:'<span class="v">0</span>',cls:'pad '+(inW?'win':'')};
+    const kk=inW?Kr(u-i,v-j):null;
+    return {html:cellHTML(dN(g.r,g.c),fmt(D.G[g.r][g.c])),cls:inW?'win':'',bg:kk?tint(wi(kk.a,kk.b),.5):''};},{w:50});
+  const kr=gridEl(k1,k2,(a,b)=>{const o=Kr(a,b);return {html:cellHTML(wN(o.a,o.b),fmt(S.K[o.a][o.b])),bg:tint(wi(o.a,o.b),.35)};});
+  const og=gridEl(D.Hp,D.Wp,(p,q)=>({html:cellHTML(`x(${p},${q})`,fmt(D.dX[p][q])),cls:(isPad(p,q)?'pad ':'')+(p===i&&q===j?'sel':'')}),{click:(p,q)=>{UI.dx={i:p,j:q};renderFlip();},w:58});
+  fill('flipGrids',wrap(`dout ${s>1?'dilated + ':''}padded`,pg),opEl('⋆'),wrap('W rotated 180°',kr),opEl('='),wrap('∂L/∂X: click a cell',og));
+  const sy=[],nu=[];let tot=0;
+  for(let a=0;a<k1;a++)for(let b=0;b<k2;b++){const g=gp(i+a,j+b);const o=Kr(a,b);
+    if(g){sy.push(`${dN(g.r,g.c)}·${wN(o.a,o.b)}`);nu.push(`${fp(D.G[g.r][g.c])}·${fp(S.K[o.a][o.b])}`);tot+=D.G[g.r][g.c]*S.K[o.a][o.b];}
+    else{sy.push(`0·${wN(o.a,o.b)}`);nu.push(`0`);}}
+  $('flipTerms').innerHTML=`<span class="lbl">window at (${i},${j}) on padded dout:</span><br><span class="lbl">PDF :</span> ${sy.join(' + ')}<br><span class="lbl">nums:</span> ${nu.join(' + ')} = <span class="res">${fmt(tot)}</span><br><span class="lbl">same as Part B View A for x(${i},${j}): ${fmt(D.dX[i][j])} ${Math.abs(tot-D.dX[i][j])<1e-9?'✓':'✗'}</span>`;
+}
+
+/* ---------------- plumbing ---------------- */
+function renderAll(){compute();renderShapes();renderMap();renderFwd();renderDout();renderDW();renderDX();renderFlip();}
+const toTxt=M=>M.map(r=>r.join(' ')).join('\n');
+const parse=t=>t.trim().split('\n').map(l=>l.trim().split(/[\s,]+/).map(Number));
+function syncControls(){$('stride').value=S.s;$('pad').value=S.p;$('gmode').value=S.mode;$('tval').value=S.t;$('names').value=S.names;
+  $('taX').value=toTxt(S.X);$('taK').value=toTxt(S.K);$('taG').value=S.Gc?toTxt(S.Gc):'';$('tlab').style.display=S.mode==='mse'?'':'none';}
+function loadPreset(k){const P=PRESETS[k];Object.assign(S,{X:P.X.map(r=>[...r]),K:P.K.map(r=>[...r]),s:P.s,p:P.p,mode:P.mode,t:P.t,Gc:P.G?P.G.map(r=>[...r]):null});
+  UI.dwStep=0;UI.dxStep=0;syncControls();renderAll();}
+$('preset').onchange=e=>loadPreset(e.target.value);
+$('stride').onchange=e=>{S.s=+e.target.value;renderAll();};
+$('pad').onchange=e=>{S.p=+e.target.value;renderAll();};
+$('names').onchange=e=>{S.names=e.target.value;renderAll();};
+$('gmode').onchange=e=>{S.mode=e.target.value;syncControls();renderAll();};
+$('tval').oninput=e=>{S.t=+e.target.value||0;renderAll();};
+$('apply').onclick=()=>{try{const X=parse($('taX').value),K=parse($('taK').value);
+  if([X,K].some(M=>M.some(r=>r.length!==M[0].length||r.some(isNaN))))throw 'rows must be equal-length numbers';
+  if(K.length>X.length+S.p)throw 'kernel larger than input';
+  S.X=X;S.K=K;const g=$('taG').value.trim();S.Gc=g?parse(g):null;$('edWarn').textContent='';renderAll();}catch(err){$('edWarn').textContent=String(err);}};
+const stepper=(key,prev,next,range,fn)=>{$(prev).onclick=()=>{UI[key]=Math.max(0,UI[key]-1);fn();};$(next).onclick=()=>{UI[key]=Math.min(D.N,UI[key]+1);fn();};$(range).oninput=e=>{UI[key]=+e.target.value;fn();};};
+stepper('dwStep','dwPrev','dwNext','dwStep',renderDW);
+stepper('dxStep','dxPrev','dxNext','dxStep',renderDX);
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='t-'+b.dataset.t));
+  if(b.dataset.t==='flip')renderFlip();if(b.dataset.t==='dx')renderDX();});
+loadPreset('pdf1');
+</script>
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Conv backprop: practice problems</title>
+<style>
+  :root{--bd:#d0d4dc;--mut:#667085;--acc:#2563eb;--bg:#f7f8fa;--ok:#16a34a;--bad:#dc2626}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;background:var(--bg);color:#1d2433;font-size:14px}
+  header{background:#111827;color:#fff;padding:14px 22px}
+  header h1{margin:0;font-size:19px}header p{margin:4px 0 0;color:#cbd5e1;font-size:13px}
+  main{padding:16px 22px 60px;max-width:1000px}
+  .card{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:16px;border-left:4px solid var(--acc)}
+  .card h2{margin:0 0 8px;font-size:16px}
+  .formulas{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:12px 16px;margin-bottom:16px}
+  .formulas code{background:#f3f4f6;padding:1px 5px;border-radius:3px}
+  button{padding:4px 10px;border:1px solid var(--bd);background:#fff;border-radius:5px;cursor:pointer;font-size:13px}
+  button:hover{background:#eef2ff}button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+  select{padding:3px 6px;border:1px solid var(--bd);border-radius:5px}
+  .small{font-size:12px;color:var(--mut)}
+  .mini{display:inline-grid;gap:2px;vertical-align:middle;margin:0 6px}
+  .mini div{border:1px solid var(--bd);min-width:30px;padding:2px 5px;text-align:center;font-size:12px;background:#fff;border-radius:3px;font-variant-numeric:tabular-nums}
+  .ans{margin:8px 0}.ans .lab{font-weight:600;margin-bottom:3px}
+  .ansgrid{display:grid;gap:3px}
+  input.c{width:62px;height:32px;text-align:center;border:1px solid var(--bd);border-radius:5px;font-size:14px}
+  input.ok{background:#dcfce7;border-color:var(--ok)}input.bad{background:#fee2e2;border-color:var(--bad)}
+  .fb{font-weight:600;margin-left:8px}.fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
+  .sol{display:none;margin-top:10px}.sol.on{display:block}
+  .terms{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;line-height:1.7;overflow-x:auto}
+  .terms .lbl{color:#94a3b8}.terms .res{color:#fde68a;font-weight:700}
+  .score{position:sticky;top:0;background:#ecfdf5;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:12px;z-index:5}
+  .mcq label{display:block;margin:3px 0;cursor:pointer}
+  .hint{display:none;background:#fff7ed;border:1px solid #fdba74;border-radius:6px;padding:6px 10px;margin-top:8px}
+  .hint.on{display:block}
+  nav.top{display:flex;gap:2px;padding:0 22px;background:#fff;border-bottom:1px solid var(--bd)}
+  nav.top button{border:none;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px;font-size:14px;background:none}
+  nav.top button.on{border-bottom-color:var(--acc);color:var(--acc);font-weight:600}
+  .part{display:none}.part.on{display:block}
+  table.nt{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin:6px 0}
+  table.nt th,table.nt td{border:1px solid var(--bd);padding:3px 8px;text-align:right}
+  table.nt th{background:#f3f4f6}table.nt td.l,table.nt th.l{text-align:left}
+  table.nt tr.tot td{font-weight:700;background:#fefce8}
+  .bar{display:inline-block;height:8px;background:var(--acc);border-radius:2px;vertical-align:middle}
+  .bar.g{background:#f59e0b}
+  textarea.spec{font-family:ui-monospace,Menlo,monospace;font-size:12px;width:230px;height:150px;border:1px solid var(--bd);border-radius:5px;padding:4px}
+  .box{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:12px 16px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<header><h1>Conv backprop: practice problems</h1>
+<p>Companion to M2L6 S2 and the "backprop matrix" handout. Compute by hand, then Check. Solutions show every term.</p></header>
+<nav class="top"><button data-p="part1" class="on">1 · Conv backprop</button><button data-p="part2">2 · Parameters &amp; memory across a CNN</button></nav>
+<main>
+<div class="part on" id="part1">
+<div class="formulas"><b>Cheat sheet</b> (window k = the patch that produced y<sub>k</sub>, d<sub>k</sub> = dout entry):<br>
+• <code>dW = Σ<sub>k</sub> d<sub>k</sub> · window<sub>k</sub></code> &nbsp; (S2: ∂L/∂k(a,b) = Σ<sub>r,c</sub> G(r,c)·x(s·r+a, s·c+b))<br>
+• <code>dX[patch k] += d<sub>k</sub> · W</code>, overlaps add &nbsp; (S2: ∂L/∂x(r′,c′) = Σ<sub>a,b</sub> G(r′−a,c′−b)·k(a,b), stride 1)<br>
+• <code>db = Σ dout</code> &nbsp;·&nbsp; padding: compute dX on the padded input, then crop the padding &nbsp;·&nbsp; output size ⌊(N−K+2P)/S⌋+1<br>
+• Every gradient has the shape of the thing it differentiates.</div>
+<div class="score" id="score"></div>
+<div id="probs"></div>
+<div class="card"><h2>Random drill (unlimited)</h2>
+<label>X size <select id="rN"><option>3</option><option selected>4</option><option>5</option></select></label>
+<label>kernel <select id="rK"><option selected>2</option><option>3</option></select></label>
+<label>stride <select id="rS"><option selected>1</option><option>2</option></select></label>
+<label>padding <select id="rP"><option selected>0</option><option>1</option></select></label>
+<button class="primary" id="rGo">New problem</button>
+<div id="rBox" style="margin-top:10px"></div></div>
+</div>
+
+<div class="part" id="part2">
+<div class="formulas"><b>Cheat sheet: counting parameters and activations</b> (C<sub>in</sub> = input depth, bias = 1 per filter/node; set to 0 if the question says "no bias")<br>
+• conv: output side = ⌊(N−K+2P)/S⌋+1, depth = #filters &nbsp;·&nbsp; <code>params = (K·K·C<sub>in</sub> + 1)·C<sub>out</sub></code> (independent of the image size, stride and padding)<br>
+• pooling: depth unchanged, <b>0 parameters</b> &nbsp;·&nbsp; FC: flatten first, <code>params = (N<sub>in</sub> + 1)·N<sub>out</sub></code> (depends on the input size!)<br>
+• activations of a layer = H<sub>out</sub>·W<sub>out</sub>·C<sub>out</sub> (the numbers it outputs; they must be stored for backprop) &nbsp;·&nbsp; memory = count × bytes (float32 = 4 B)<br>
+• Lecture takeaways (VGG-16): most <b>memory</b> is in the early conv layers (big activations); most <b>parameters</b> are in the FC layers (FC1 = 7·7·512·4096 = 102,760,448).</div>
+
+<div class="box"><b>Network calculator</b>: pick a preset or edit the layers (one per line: <code>in H W C</code> · <code>conv K S P filters</code> · <code>pool K S</code> · <code>fc N</code>)
+<div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;align-items:flex-start">
+ <div><select id="nPre"><option value="lenet">LeNet (slide 25)</option><option value="alex">AlexNet (slide 33)</option><option value="vgg">VGG-16</option><option value="tiny">Tiny custom net</option></select><br>
+ <textarea class="spec" id="nSpec"></textarea><br>
+ <label><input type="checkbox" id="nBias" checked> include bias</label><br>
+ <label>batch <input type="number" id="nB" value="1" min="1" style="width:60px"></label>
+ <label>bytes <select id="nBy"><option value="4">4 (float32)</option><option value="2">2 (float16)</option></select></label>
+ <div id="nErr" class="small" style="color:#b91c1c"></div></div>
+ <div id="nTbl" style="overflow:auto;max-width:100%"></div></div>
+<div id="nSum" class="terms" style="margin-top:8px"></div>
+<p class="small">The bars show each layer's share of the total. For VGG-16 the amber (activation) bars are biggest in the early conv layers and the blue (parameter) bars are biggest in FC1. Activation counts exclude the input and count one stored output per layer (the lecture's "store the forward-pass activations"). AlexNet's two-GPU grouping is ignored, as on the slide.</p></div>
+
+<div class="score" id="score2"></div>
+<div id="probs2"></div>
+<div class="card"><h2>Random drill (unlimited)</h2><button class="primary" id="r2Go">New network</button>
+<div id="r2Box" style="margin-top:10px"></div></div>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const mk=(r,c,f)=>Array.from({length:r},(_,i)=>Array.from({length:c},(_,j)=>f(i,j)));
+const fmt=v=>Number.isInteger(v)?String(v):(+v.toFixed(3)).toString();
+const fp=v=>v<0?`(${fmt(v)})`:fmt(v);
+const mini=M=>`<span class="mini" style="grid-template-columns:repeat(${M[0].length},auto)">${M.flat().map(v=>`<div>${fmt(v)}</div>`).join('')}</span>`;
+
+function conv(X,K,s,p){const H=X.length,W=X[0].length,k1=K.length,k2=K[0].length;
+  const Xp=mk(H+2*p,W+2*p,(i,j)=>X[i-p]?.[j-p]??0);
+  const Ho=Math.floor((H+2*p-k1)/s)+1,Wo=Math.floor((W+2*p-k2)/s)+1;
+  const Y=mk(Ho,Wo,(r,c)=>{let v=0;for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)v+=Xp[s*r+a][s*c+b]*K[a][b];return v;});
+  return {Xp,Y,Ho,Wo,k1,k2,H,W};}
+function back(X,K,s,p,G){const c=conv(X,K,s,p),{Xp,Ho,Wo,k1,k2,H,W}=c;
+  const dK=mk(k1,k2,(a,b)=>{let v=0;for(let r=0;r<Ho;r++)for(let q=0;q<Wo;q++)v+=G[r][q]*Xp[s*r+a][s*q+b];return v;});
+  const tX=mk(Xp.length,Xp[0].length,()=>[]);
+  for(let r=0;r<Ho;r++)for(let q=0;q<Wo;q++)for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)tX[s*r+a][s*q+b].push({r,q,a,b});
+  const dXp=tX.map(row=>row.map(ts=>ts.reduce((t,o)=>t+G[o.r][o.q]*K[o.a][o.b],0)));
+  const dX=mk(H,W,(i,j)=>dXp[i+p][j+p]);
+  return {...c,dK,dX,tX,db:G.flat().reduce((a,b)=>a+b,0)};}
+
+/* solution text */
+function solBack(X,K,s,p,G,what){const B=back(X,K,s,p,G);let h='';
+  if(what.includes('y'))h+=`<span class="lbl">y = window ⊙ K, summed:</span><br>`+B.Y.map((row,r)=>row.map((v,c)=>`y(${r},${c}) = ${mk(B.k1,B.k2,(a,b)=>`${fp(B.Xp[s*r+a][s*c+b])}·${fp(K[a][b])}`).flat().join(' + ')} = <span class="res">${fmt(v)}</span>`).join('<br>')).join('<br>')+'<br>';
+  if(what.includes('dW'))h+=`<span class="lbl">dW(a,b) = Σ d_k · (pixel at offset (a,b) in window k):</span><br>`+B.dK.map((row,a)=>row.map((v,b)=>{const t=[];for(let r=0;r<B.Ho;r++)for(let q=0;q<B.Wo;q++)t.push(`${fp(G[r][q])}·${fp(B.Xp[s*r+a][s*q+b])}`);return `dW(${a},${b}) = ${t.join(' + ')} = <span class="res">${fmt(v)}</span>`;}).join('<br>')).join('<br>')+'<br>';
+  if(what.includes('dX'))h+=`<span class="lbl">dX(i,j) = Σ over windows covering the pixel of d_k · (kernel weight on it)${p?' (padded coords shown = i+p, j+p; padding cropped)':''}:</span><br>`+B.dX.map((row,i)=>row.map((v,j)=>{const ts=B.tX[i+p][j+p];return `dX(${i},${j}) = ${ts.map(o=>`${fp(G[o.r][o.q])}·${fp(K[o.a][o.b])}`).join(' + ')||'0'} = <span class="res">${fmt(v)}</span>`;}).join('<br>')).join('<br>');
+  return h;}
+function solCell(X,K,s,p,G,what,r,c){const B=back(X,K,s,p,G);
+  if(what==='dW'){const t=[];for(let q=0;q<B.Ho;q++)for(let w=0;w<B.Wo;w++)t.push(`${fp(G[q][w])}·${fp(B.Xp[s*q+r][s*w+c])}`);return `dW(${r},${c}) = ${t.join(' + ')} = <span class="res">${fmt(B.dK[r][c])}</span>`;}
+  const ts=B.tX[r+p][c+p];return `dX(${r},${c}) = ${ts.map(o=>`${fp(G[o.r][o.q])}·${fp(K[o.a][o.b])}`).join(' + ')||'0'} = <span class="res">${fmt(B.dX[r][c])}</span>  (${ts.length} term${ts.length==1?'':'s'})`;}
+
+const X4=[[1,2,3,4],[2,3,4,5],[5,6,7,8],[7,8,9,0]];
+const X3=[[1,2,0],[3,1,2],[0,1,4]],K22=[[1,-1],[2,0]];
+const PROBS=[
+ {t:'P1 · Shapes',q:'Fill in the output shape side length (square) for each case.',type:'num',tol:0,items:[
+  ['X 4×4, K 2×2, s=1, p=0: y (and dout) side',3],['same: dW side',2],['same: dX side',4],
+  ['X 5×5, K 3×3, s=2, p=0: y side',2],['same: dX side',5],['X 4×4, K 3×3, s=1, p=1: y side',4],['same: dX side (after cropping padding)',4]],
+  sol:'y = ⌊(N−K+2P)/S⌋+1: (4−2)/1+1 = 3; (5−3)/2+1 = 2; (4−3+2)/1+1 = 4. dW always has the kernel\'s shape and dX always has X\'s shape (padding is cropped), regardless of stride.'},
+ {t:'P2 · Forward pass (warm-up)',q:'Stride 1, no padding. Compute y.',X:X3,K:K22,s:1,p:0,G:null,asks:[{k:'grid',w:'y'}]},
+ {t:'P3 · dW from dout',q:'Same X and K as P2. Upstream gradient is given. Compute dW (2×2).',X:X3,K:K22,s:1,p:0,G:[[2,-1],[1,3]],asks:[{k:'grid',w:'dK'}],show:'dout',what:'dW',hint:'Each weight multiplies one pixel per window: dW(0,0) uses the top-left pixel of every window, dW(0,1) the top-right, and so on.'},
+ {t:'P4 · dX from dout',q:'Same setup as P3. Compute dX (3×3). Scatter d_k·W into each window\'s patch and add overlaps.',X:X3,K:K22,s:1,p:0,G:[[2,-1],[1,3]],asks:[{k:'grid',w:'dX'}],what:'dX',hint:'The center pixel (1,1) is covered by all 4 windows; corners by 1.'},
+ {t:'P5 · The handout example, single entries',q:'PDF handout X (4×4), W = [[1,2],[3,4]], stride 1, no padding. dout (3×3) is given. Compute only these entries.',X:X4,K:[[1,2],[3,4]],s:1,p:0,G:[[1,0,2],[0,1,0],[-1,0,1]],show:'dout',asks:[{k:'cell',w:'dK',r:0,c:0},{k:'cell',w:'dK',r:1,c:1},{k:'cell',w:'dX',r:1,c:1},{k:'cell',w:'dX',r:0,c:3},{k:'cell',w:'dX',r:2,c:2}],hint:'dX(1,1) = d₁w₄ + d₂w₃ + d₄w₂ + d₅w₁ in the handout\'s notation.'},
+ {t:'P6 · Stride 2 (no overlap)',q:'Same X as P5, W = [[1,2],[3,4]], stride 2, no padding. dout is 2×2. Compute dW and dX. At stride 2 the windows don\'t overlap.',X:X4,K:[[1,2],[3,4]],s:2,p:0,G:[[1,-1],[2,0]],show:'dout',asks:[{k:'grid',w:'dK'},{k:'grid',w:'dX'}],what:'dW,dX'},
+ {t:'P7 · Padding',q:'X = [[1,2],[3,4]], K = [[1,0],[0,1]], stride 1, padding 1 (zeros on all sides). Then y is 3×3 and dout is given. Compute dW and dX (dX is 2×2: crop the padding).',X:[[1,2],[3,4]],K:[[1,0],[0,1]],s:1,p:1,G:[[1,2,1],[0,1,0],[2,1,1]],show:'dout',asks:[{k:'grid',w:'dK'},{k:'grid',w:'dX'}],what:'dW,dX',hint:'dW pairs dout with the padded X: zeros contribute nothing. For dX, compute on the 4×4 padded grid, then keep the middle 2×2.'},
+ {t:'P8 · From a loss to the weight gradient',q:'X = [[1,2,0],[3,1,2],[0,1,4]], K = [[1,-1],[2,0]], bias 0, stride 1. Loss L = ½ Σ (y − 3)². First find dout = y − 3, then dW, and db = Σ dout.',type:'loss'},
+ {t:'P9 · Count the terms',q:'How many terms are summed in each gradient entry?',type:'num',tol:0,items:[
+  ['dX(1,1), 4×4 X, 2×2 K, stride 1',4],['dX(0,0), same',1],['dX(0,1), same',2],['dX(1,1), 4×4 X, 2×2 K, stride 2',1],['dX(2,2), 5×5 X, 3×3 K, stride 1',9],['dW(0,0), 4×4 X, 2×2 K, stride 1',9],['dW(0,0), 4×4 X, 2×2 K, stride 2',4]],
+  sol:'dX: terms = number of windows covering the pixel (corner 1, edge 2, interior 4 for 2×2 at stride 1; 9 for the interior of a 3×3 kernel). At stride 2 with k = s there is no overlap, so 1. dW: one term per output pixel (y is 3×3 = 9 at stride 1, 2×2 = 4 at stride 2), because the weight is shared by every window.'},
+ {t:'P10 · Flip + cross-correlate',q:'∂L/∂X = cross-correlation of padded dout with W rotated 180° (S2 B4).',type:'num',tol:0,items:[
+  ['W = [[1,2],[3,4]]: rotated kernel, top-left',4],['rotated kernel, top-right',3],['rotated kernel, bottom-left',2],['zero rings to pad dout for a 3×3 kernel (stride 1)',2],['padded size of a 3×3 dout for a 2×2 kernel',5],['output size of that cross-correlation (should equal X\'s side)',4]],
+  sol:'Rot180([[1,2],[3,4]]) = [[4,3],[2,1]]. Pad k−1 rings of zeros: 3×3 kernel → 2. A 3×3 dout padded by 1 ring is 5×5; (5−2)/1+1 = 4, the side of X. At stride > 1 you must also dilate dout (insert s−1 zeros between entries) before padding.'},
+ {t:'P11 · Concepts',type:'mcq',mcq:[
+  {q:'Why does one weight\'s gradient involve every output pixel?',o:['Weight sharing: the same weight is used in every window, so gradients from all windows add','Because the loss is a sum','Because of padding'],a:0,why:'Multiple outgoing edges in the computation graph → sum the chain rules.'},
+  {q:'Forward is cross-correlation. The gradient w.r.t. the input is…',o:['a cross-correlation of dout with W','a convolution of dout with W (flip + cross-correlate)','a convolution of X with dout'],a:1,why:'The r′−a, c′−b indices are the flip: this is the duality.'},
+  {q:'dW is…',o:['a cross-correlation of X with dout','dout times W transposed','a convolution of dout with W'],a:0,why:'dW(a′,b′) = Σ G(r,c)·x(r+a′, c+b′).'},
+  {q:'With padding 1, what happens to the gradient on the padded border?',o:['It is passed to the previous layer','It is computed and then cropped away','It is added to the bias gradient'],a:1,why:'dX has the shape of the unpadded X.'},
+  {q:'The bias gradient of a single-channel conv is…',o:['Σ of all dout entries','Σ of all X entries','dout averaged over channels only'],a:0,why:'The bias is added to every output pixel, so it has one path per output.'},
+  {q:'Does dout depend on the conv layer\'s own weights?',o:['It is computed by this layer','It comes back from later layers; this layer just consumes it'],a:1,why:'It is ∂L/∂y from the layers after this one.'}]}
+];
+const SCORE={};
+const upd=()=>{const ok=Object.values(SCORE).filter(Boolean).length;$('score').innerHTML=`<b>Score:</b> ${ok} / ${PROBS.length} problems fully correct`;};
+const near=(a,b)=>a!==''&&!isNaN(+a)&&Math.abs(+a-b)<1e-6;
+const gridIn=(id,R,C)=>`<div class="ansgrid" data-id="${id}" style="grid-template-columns:repeat(${C},62px)">${Array.from({length:R*C},(_,k)=>`<input class="c" data-k="${k}">`).join('')}</div>`;
+const lab={y:'y',dK:'dW',dX:'dX'};
+
+/* builds the answer UI for X/K/G style problems; returns {html,check,sol} */
+function build(P,idx){const s=P.s,p=P.p;let G=P.G;if(!G){G=conv(P.X,P.K,s,p).Y;}const B=back(P.X,P.K,s,p,G);let h='';
+  h+=`<div>X = ${mini(P.X)} K = ${mini(P.K)} stride ${s}, padding ${p}${P.show==='dout'?` &nbsp; dout = ${mini(G)}`:''}</div>`;
+  P.asks.forEach((a,i)=>{if(a.k==='grid'){const M=a.w==='y'?B.Y:a.w==='dK'?B.dK:B.dX;h+=`<div class="ans"><div class="lab">${lab[a.w]} (${M.length}×${M[0].length})</div>${gridIn(i,M.length,M[0].length)}</div>`;}
+    else h+=`<span style="margin-right:14px">${lab[a.w]}(${a.r},${a.c}) = <input class="c" data-i="${i}"></span>`;});
+  const check=card=>{let ok=true;P.asks.forEach((a,i)=>{if(a.k==='grid'){const M=a.w==='y'?B.Y:a.w==='dK'?B.dK:B.dX;card.querySelectorAll(`.ansgrid[data-id="${i}"] input`).forEach(inp=>{const k=+inp.dataset.k;const g=near(inp.value,M[Math.floor(k/M[0].length)][k%M[0].length]);inp.className='c '+(g?'ok':'bad');ok=ok&&g;});}
+    else{const inp=card.querySelector(`input[data-i="${i}"]`);const v=a.w==='dK'?B.dK[a.r][a.c]:B.dX[a.r][a.c];const g=near(inp.value,v);inp.className='c '+(g?'ok':'bad');ok=ok&&g;}});return ok;};
+  const sol=()=>{let t='';const grids=P.asks.filter(a=>a.k==='grid').map(a=>a.w==='dK'?'dW':a.w);
+    if(grids.length)t+=solBack(P.X,P.K,s,p,G,grids);P.asks.filter(a=>a.k==='cell').forEach(a=>t+=solCell(P.X,P.K,s,p,G,a.w==='dK'?'dW':'dX',a.r,a.c)+'<br>');return `<div class="terms">${t}</div>`;};
+  return {html:h,check,sol};}
+
+function renderProbs(){const host=$('probs');host.innerHTML='';
+ PROBS.forEach((P,idx)=>{const card=document.createElement('div');card.className='card';let h=`<h2>${P.t}</h2><p>${P.q||''}</p>`;let ck,solf;
+  if(P.type==='num'){h+=`<table>${P.items.map((it,k)=>`<tr><td style="padding:2px 12px 2px 0">${it[0]}</td><td><input class="c" data-k="${k}"></td></tr>`).join('')}</table>`;
+    ck=c=>{let ok=true;c.querySelectorAll('input.c').forEach(i=>{const g=near(i.value,P.items[+i.dataset.k][1]);i.className='c '+(g?'ok':'bad');ok=ok&&g;});return ok;};solf=()=>`<div class="terms">${P.sol}</div>`;}
+  else if(P.type==='loss'){const K=P.K=[[1,-1],[2,0]],X=P.X=X3;const Y=conv(X,K,1,0).Y;const G=Y.map(r=>r.map(v=>v-3));const B=back(X,K,1,0,G);
+    h+=`<div>X = ${mini(X)} K = ${mini(K)}</div><div class="ans"><div class="lab">dout (2×2)</div>${gridIn('a',2,2)}</div><div class="ans"><div class="lab">dW (2×2)</div>${gridIn('b',2,2)}</div><div class="ans">db = <input class="c" data-k="db"></div>`;
+    ck=c=>{let ok=true;const chk=(sel,M)=>c.querySelectorAll(sel).forEach(i=>{const k=+i.dataset.k;const g=near(i.value,M[Math.floor(k/2)][k%2]);i.className='c '+(g?'ok':'bad');ok=ok&&g;});chk('.ansgrid[data-id=a] input',G);chk('.ansgrid[data-id=b] input',B.dK);const d=c.querySelector('input[data-k=db]');const g=near(d.value,B.db);d.className='c '+(g?'ok':'bad');return ok&&g;};
+    solf=()=>`<div class="terms"><span class="lbl">y =</span> ${JSON.stringify(Y)}<br><span class="lbl">dout = y − 3 =</span> ${JSON.stringify(G)}<br>${solBack(X,K,1,0,G,['dW'])}<br>db = Σ dout = <span class="res">${fmt(B.db)}</span></div>`;P.hint='L = ½Σ(y−t)² gives ∂L/∂y = y − t. Then it is the same as P3.';}
+  else if(P.type==='mcq'){h+=P.mcq.map((m,k)=>`<div class="mcq" style="margin-bottom:8px"><b>${k+1}. ${m.q}</b>${m.o.map((o,oi)=>`<label><input type="radio" name="m${idx}_${k}" value="${oi}"> ${o}</label>`).join('')}<div class="small why" data-k="${k}" style="display:none"></div></div>`).join('');
+    ck=c=>{let ok=true;P.mcq.forEach((m,k)=>{const r=c.querySelector(`input[name=m${idx}_${k}]:checked`);const g=r&&+r.value===m.a;ok=ok&&g;const w=c.querySelector(`.why[data-k="${k}"]`);w.style.display='block';w.style.color=g?'var(--ok)':'var(--bad)';w.textContent=(g?'✓ ':'✗ ')+m.why;});return ok;};
+    solf=()=>`<div class="terms">${P.mcq.map((m,k)=>`${k+1}. ${m.o[m.a]}`).join('<br>')}</div>`;}
+  else{const b=build(P,idx);h+=b.html;ck=b.check;solf=b.sol;}
+  h+=`<div style="margin-top:8px"><button class="primary" data-a="c">Check</button> <button data-a="s">Show solution</button>${P.hint?' <button data-a="h">Hint</button>':''}<span class="fb"></span></div>${P.hint?`<div class="hint">${P.hint}</div>`:''}<div class="sol"></div>`;
+  card.innerHTML=h;host.appendChild(card);const fb=card.querySelector('.fb'),sol=card.querySelector('.sol');
+  card.querySelector('[data-a=c]').onclick=()=>{const ok=ck(card);fb.textContent=ok?'✓ all correct':'✗ some answers are off';fb.className='fb '+(ok?'ok':'bad');SCORE[idx]=ok;upd();};
+  card.querySelector('[data-a=s]').onclick=()=>{if(!sol.innerHTML)sol.innerHTML=solf();sol.classList.toggle('on');};
+  const hb=card.querySelector('[data-a=h]');if(hb)hb.onclick=()=>card.querySelector('.hint').classList.toggle('on');});upd();}
+
+function rnd(){const N=+$('rN').value,k=+$('rK').value,s=+$('rS').value,p=+$('rP').value;
+  const X=mk(N,N,()=>Math.floor(Math.random()*6)),K=mk(k,k,()=>Math.floor(Math.random()*5)-2);
+  if(Math.floor((N+2*p-k)/s)+1<1){$('rBox').innerHTML='<span class="small">Empty output; change settings.</span>';return;}
+  const Ho=conv(X,K,s,p).Ho;const G=mk(Ho,Ho,()=>Math.floor(Math.random()*7)-3);const B=back(X,K,s,p,G);
+  $('rBox').innerHTML=`<div>X = ${mini(X)} K = ${mini(K)} stride ${s}, padding ${p} dout = ${mini(G)}</div>
+   <div class="ans"><div class="lab">dW (${k}×${k})</div>${gridIn('w',k,k)}</div><div class="ans"><div class="lab">dX (${N}×${N})</div>${gridIn('x',N,N)}</div>
+   <button class="primary" id="rc">Check</button> <button id="rs">Show solution</button><span class="fb" id="rf"></span><div class="sol" id="rsol"></div>`;
+  $('rc').onclick=()=>{let ok=true;const f=(id,M)=>document.querySelectorAll(`.ansgrid[data-id=${id}] input`).forEach(i=>{const q=+i.dataset.k;const g=near(i.value,M[Math.floor(q/M[0].length)][q%M[0].length]);i.className='c '+(g?'ok':'bad');ok=ok&&g;});f('w',B.dK);f('x',B.dX);$('rf').textContent=ok?'✓ all correct':'✗ check the red cells';$('rf').className='fb '+(ok?'ok':'bad');};
+  $('rs').onclick=()=>{const b=$('rsol');if(!b.innerHTML)b.innerHTML=`<div class="terms">${solBack(X,K,s,p,G,['dW','dX'])}</div>`;b.classList.toggle('on');};}
+$('rGo').onclick=rnd;renderProbs();rnd();
+
+/* ================= PART 2: parameters & memory ================= */
+document.querySelectorAll('nav.top button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav.top button').forEach(x=>x.classList.toggle('on',x===b));document.querySelectorAll('.part').forEach(x=>x.classList.toggle('on',x.id===b.dataset.p));});
+const prod=a=>a.reduce((x,y)=>x*y,1);
+const ths=v=>Math.round(v).toLocaleString('en-US');
+function parseSpec(txt){return txt.trim().split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{const [t,...a]=l.split(/\s+/);const n=a.map(Number);
+  if(n.some(isNaN))throw 'bad number in: '+l;
+  if(t==='in')return {t,h:n[0],w:n[1],c:n[2]};if(t==='conv')return {t,k:n[0],s:n[1],p:n[2],c:n[3]};if(t==='pool')return {t,k:n[0],s:n[1]};if(t==='fc')return {t,n:n[0]};throw 'unknown layer: '+l;});}
+function trace(spec,bias=1){let sh=null,ci=0,pi=0,fi=0;const rows=[];
+  spec.forEach(L=>{let r;
+    if(L.t==='in'){sh=[L.h,L.w,L.c];r={name:'input',desc:`${L.h}×${L.w}×${L.c}`,shape:sh.slice(),act:prod(sh),params:0,macs:0,pf:'0',inp:true};}
+    else if(L.t==='conv'){if(!sh||sh.length!==3)throw 'conv needs a 3-D input';const ho=Math.floor((sh[0]+2*L.p-L.k)/L.s)+1,wo=Math.floor((sh[1]+2*L.p-L.k)/L.s)+1;if(ho<1||wo<1)throw 'conv output is empty';
+      r={name:'conv'+(++ci),desc:`${L.c} filters ${L.k}×${L.k}, s${L.s}, p${L.p}`,params:(L.k*L.k*sh[2]+bias)*L.c,macs:ho*wo*L.c*L.k*L.k*sh[2],pf:`(${L.k}·${L.k}·${sh[2]}${bias?'+1':''})·${L.c}`};sh=[ho,wo,L.c];r.shape=sh.slice();r.act=prod(sh);}
+    else if(L.t==='pool'){if(!sh||sh.length!==3)throw 'pool needs a 3-D input';const ho=Math.floor((sh[0]-L.k)/L.s)+1,wo=Math.floor((sh[1]-L.k)/L.s)+1;if(ho<1||wo<1)throw 'pool output is empty';
+      sh=[ho,wo,sh[2]];r={name:'pool'+(++pi),desc:`${L.k}×${L.k}, s${L.s}`,params:0,macs:0,pf:'0',shape:sh.slice(),act:prod(sh)};}
+    else{const nin=prod(sh);r={name:'fc'+(++fi),desc:`flatten ${nin} → ${L.n}`,params:(nin+bias)*L.n,macs:nin*L.n,pf:`(${nin}${bias?'+1':''})·${L.n}`};sh=[L.n];r.shape=sh.slice();r.act=L.n;}
+    rows.push(r);});
+  return rows;}
+const shp=s=>s.join('×');
+function netTable(rows,opt={}){const body=rows.filter(r=>!r.inp);const TP=body.reduce((t,r)=>t+r.params,0),TA=body.reduce((t,r)=>t+r.act,0);
+  let h=`<table class="nt"><tr><th class="l">layer</th><th class="l">config</th><th>output</th>${opt.hide?'':'<th>activations</th><th>params</th><th class="l">params formula</th>'+(opt.bars?'<th class="l">share of act</th><th class="l">share of params</th>':'')}</tr>`;
+  rows.forEach(r=>{h+=`<tr><td class="l">${r.name}</td><td class="l">${r.desc}</td><td>${r.inp?'':shp(r.shape)}</td>`+(opt.hide?'':`<td>${r.inp?'–':ths(r.act)}</td><td>${r.inp?'–':ths(r.params)}</td><td class="l">${r.inp?'':r.pf}</td>`+(opt.bars?`<td class="l">${r.inp?'':`<span class="bar g" style="width:${Math.round(150*r.act/TA)}px"></span> ${(100*r.act/TA).toFixed(1)}%`}</td><td class="l">${r.inp||!TP?'':`<span class="bar" style="width:${Math.round(150*r.params/TP)}px"></span> ${(100*r.params/TP).toFixed(1)}%`}</td>`:''))+'</tr>';});
+  if(!opt.hide)h+=`<tr class="tot"><td class="l" colspan="3">total</td><td>${ths(TA)}</td><td>${ths(TP)}</td><td class="l"></td>${opt.bars?'<td></td><td></td>':''}</tr>`;
+  return h+'</table>';}
+const SPECS={
+ lenet:'in 32 32 1\nconv 5 1 0 6\npool 2 2\nconv 5 1 0 16\npool 2 2\nconv 5 1 0 120\nfc 84\nfc 10',
+ alex:'in 227 227 3\nconv 11 4 0 96\npool 3 2\nconv 5 1 2 256\npool 3 2\nconv 3 1 1 384\nconv 3 1 1 384\nconv 3 1 1 256\npool 3 2\nfc 4096\nfc 4096\nfc 1000',
+ vgg:'in 224 224 3\nconv 3 1 1 64\nconv 3 1 1 64\npool 2 2\nconv 3 1 1 128\nconv 3 1 1 128\npool 2 2\nconv 3 1 1 256\nconv 3 1 1 256\nconv 3 1 1 256\npool 2 2\nconv 3 1 1 512\nconv 3 1 1 512\nconv 3 1 1 512\npool 2 2\nconv 3 1 1 512\nconv 3 1 1 512\nconv 3 1 1 512\npool 2 2\nfc 4096\nfc 4096\nfc 1000',
+ tiny:'in 28 28 1\nconv 3 1 0 8\npool 2 2\nconv 3 1 1 16\npool 2 2\nfc 10'};
+function renderNet(){try{$('nErr').textContent='';const rows=trace(parseSpec($('nSpec').value),$('nBias').checked?1:0);const body=rows.filter(r=>!r.inp);
+  const TP=body.reduce((t,r)=>t+r.params,0),TA=body.reduce((t,r)=>t+r.act,0),MA=body.reduce((t,r)=>t+r.macs,0),B=+$('nB').value||1,by=+$('nBy').value;
+  $('nTbl').innerHTML=netTable(rows,{bars:true});
+  $('nSum').innerHTML=`<span class="lbl">parameters:</span> <span class="res">${ths(TP)}</span> → ${(TP*by/1e6).toFixed(2)} MB of weights (×2 with gradients, ×4 with Adam state)<br><span class="lbl">activations (per image):</span> <span class="res">${ths(TA)}</span> → ${(TA*by/1e6).toFixed(2)} MB; batch ${B}: <span class="res">${(TA*by*B/1e6).toFixed(2)} MB</span> stored for backprop<br><span class="lbl">multiply-accumulates (extra, per image):</span> ${ths(MA)}`;
+ }catch(e){$('nErr').textContent=String(e);}}
+$('nPre').onchange=()=>{$('nSpec').value=SPECS[$('nPre').value];renderNet();};
+['nSpec','nBias','nB','nBy'].forEach(id=>$(id).oninput=renderNet);$('nBy').onchange=renderNet;
+$('nSpec').value=SPECS.lenet;renderNet();
+
+const cp=(k,cin,c,b=1)=>(k*k*cin+b)*c;
+const LENET=SPECS.lenet.replace('conv 5 1 0 120\nfc 84','conv 5 1 0 120\nfc 84');
+const T=(s,b=1)=>trace(parseSpec(s),b);
+const tl=(rows,n)=>rows.find(r=>r.name===n);
+const lr=T(SPECS.lenet),ar=T(SPECS.alex),vr=T(SPECS.vgg,0),tr=T(SPECS.tiny);
+const sumP=r=>r.reduce((t,x)=>t+x.params,0),sumA=r=>r.filter(x=>!x.inp).reduce((t,x)=>t+x.act,0);
+const PR2=[
+ {t:'Q1 · One conv layer',q:'Input 32×32×3. One conv layer: 16 filters of 5×5, stride 1, padding 0 (with bias).',items:[['output side',28],['parameters per filter (incl. bias)',76],['total parameters (with bias)',1216],['total parameters if there were no bias',1200],['activations (numbers in the output)',28*28*16]],
+  sol:'side = (32−5)/1+1 = 28. Each filter has 5·5·3 = 75 weights + 1 bias = 76; ×16 filters = 1,216 (1,200 without bias). Activations = 28·28·16 = 12,544. Parameters would be unchanged for a 64×64 input; only the activations would grow.'},
+ {t:'Q2 · Conv with padding, then pooling',q:'Input 56×56×64 → conv 3×3, 128 filters, stride 1, pad 1 → max-pool 2×2, stride 2.',items:[['conv output side',56],['conv parameters (with bias)',cp(3,64,128)],['conv activations',56*56*128],['pool output side',28],['pool parameters',0],['pool activations',28*28*128]],
+  sol:`conv: (56−3+2)/1+1 = 56. params = (3·3·64+1)·128 = ${ths(cp(3,64,128))}. activations = 56·56·128 = ${ths(56*56*128)}. pool: ⌊(56−2)/2⌋+1 = 28, depth stays 128, no parameters; activations = 28·28·128 = ${ths(28*28*128)}. Note the pool layer still has outputs that are stored.`},
+ {t:'Q3 · Conv features into FC layers',q:'A conv stack ends with a 7×7×64 feature map, which is flattened → FC 128 → FC 10 (with bias).',items:[['flattened length',3136],['FC1 parameters',(3136+1)*128],['FC2 parameters',129*10],['total FC parameters',(3136+1)*128+129*10]],
+  sol:`7·7·64 = 3,136. FC1 = (3136+1)·128 = ${ths(401536)}. FC2 = (128+1)·10 = 1,290. Total ${ths(402826)}. FC parameters scale with the flattened size; conv parameters don't.`},
+ {t:'Q4 · LeNet end to end',q:'LeNet from the lecture: 32×32×1 → C1: 6 filters 5×5 → S2: 2×2 pool, s2 → C3: 16 filters 5×5 → S4: 2×2 pool, s2 → C5: 120 filters 5×5 → F6: 84 → output 10. (All with bias.) Use the calculator above to check yourself afterwards.',spec:SPECS.lenet,
+  items:[['C1 parameters',tl(lr,'conv1').params],['C1 activations',tl(lr,'conv1').act],['C3 parameters',tl(lr,'conv2').params],['C3 activations',tl(lr,'conv2').act],['C5 parameters',tl(lr,'conv3').params],['F6 parameters',tl(lr,'fc1').params],['output-layer parameters',tl(lr,'fc2').params],['total parameters',sumP(lr)],['total activations (all layer outputs, excluding the input)',sumA(lr)]],
+  sol:'tbl:lenet'},
+ {t:'Q5 · AlexNet (slide 33)',q:'227×227×3 input. CONV1: 96 filters 11×11, s4, p0. POOL1: 3×3, s2. CONV2: 256 filters 5×5, s1, p2. Then … POOL3 gives 6×6×256, FC6 4096, FC7 4096, FC8 1000.',
+  items:[['CONV1 output side',55],['CONV1 parameters (with bias)',34944],['POOL1 output side',27],['CONV2 parameters (with bias)',cp(5,96,256)],['CONV2 activations',27*27*256],['FC6 parameters (with bias)',(6*6*256+1)*4096]],
+  sol:`CONV1: (227−11)/4+1 = 55; params = 96·(11·11·3+1) = 34,944. POOL1: ⌊(55−3)/2⌋+1 = 27. CONV2 input depth is 96 (pooling keeps the depth): (5·5·96+1)·256 = ${ths(cp(5,96,256))}; same-size conv (p=2) → 27×27×256 = ${ths(27*27*256)} activations. FC6: (6·6·256+1)·4096 = ${ths((6*6*256+1)*4096)}. Full AlexNet total (calculator) ≈ ${ths(sumP(ar))}, and FC6 alone is over half of it.`},
+ {t:'Q6 · VGG-16 (slide 35, no bias)',q:'Input 224×224×3, all convs 3×3 s1 p1, pools 2×2 s2. Biases are not counted here, as on the slide.',
+  items:[['CONV3-64 (first layer) parameters',1728],['CONV3-64 (first layer) activations',224*224*64],['CONV3-128 (first, at 112×112) parameters',9*64*128],['CONV3-128 (first) activations',112*112*128],['FC1 parameters (7·7·512 → 4096)',7*7*512*4096],['FC2 parameters',4096*4096],['FC3 parameters',4096*1000]],
+  sol:`params = 3·3·C_in·C_out: 9·3·64 = 1,728; 9·64·128 = 73,728. Activations: 224·224·64 = ${ths(224*224*64)}; 112·112·128 = ${ths(112*112*128)}. FC1 = 7·7·512·4096 = ${ths(7*7*512*4096)}; FC2 = ${ths(4096*4096)}; FC3 = ${ths(4096*1000)}. The first conv layer has under 2 thousand parameters but about 3.2 million activations; FC1 has 103 million parameters. That's the memory-vs-parameters split in the lecture.`},
+ {t:'Q7 · Design a small net',q:'28×28×1 → conv 3×3, 8 filters, s1, p0 → pool 2×2 s2 → conv 3×3, 16 filters, s1, p1 → pool 2×2 s2 → FC 10 (with bias). Work out every shape.',spec:SPECS.tiny,
+  items:[['conv1 output side',26],['pool1 output side',13],['conv2 output side',13],['pool2 output side',6],['flattened length',576],['total parameters',sumP(tr)],['total activations (all layer outputs, excluding input)',sumA(tr)]],
+  sol:'tbl:tiny'},
+ {t:'Q8 · Memory in bytes',q:'Use the Q7 network with float32 (4 bytes per number). Count only the forward activations that must be stored for backprop (use 1 KB = 1000 B, 1 MB = 1,000,000 B).',
+  items:[['activation memory per image (KB)',sumA(tr)*4/1000,0.05],['activation memory for a batch of 64 (MB)',sumA(tr)*4*64/1e6,0.005],['weights memory (bytes)',sumP(tr)*4]],
+  sol:`activations = ${ths(sumA(tr))} × 4 B = ${ths(sumA(tr)*4)} B = ${(sumA(tr)*4/1000).toFixed(1)} KB per image; ×64 = ${(sumA(tr)*4*64/1e6).toFixed(4)} MB. Weights = ${ths(sumP(tr))} × 4 B = ${ths(sumP(tr)*4)} B. Activation memory grows with the batch size; weight memory doesn't. During training you also keep gradients (another ×1 of the weights, more for Adam).`},
+ {t:'Q9 · Why 3×3 stacks? (no bias, C = 64 in and out)',q:'Compare the parameters needed to cover the same receptive field.',
+  items:[['one 5×5 conv, 64→64',25*64*64],['two stacked 3×3 convs, 64→64 each',2*9*64*64],['one 7×7 conv, 64→64',49*64*64],['three stacked 3×3 convs, 64→64 each',3*9*64*64],['receptive field (side) of three stacked 3×3 convs',7]],
+  sol:'25·64·64 = 102,400 vs 2·9·64·64 = 73,728. 49·64·64 = 200,704 vs 3·9·64·64 = 110,592. Three 3×3 (stride 1) see a 7×7 window, so the stack matches the 7×7 conv with about 45% fewer parameters (and more non-linearities). This is the lecture\'s VGG argument.'},
+ {t:'Q10 · Inception and 1×1 convs',q:'An inception module receives a 28×28×256 input.',
+  items:[['concatenating branches with depths 64, 128, 32, 32 gives depth',256],['1×1 conv 256→64 parameters (with bias)',cp(1,256,64)],['5×5 conv directly 256→32 (no bias)',25*256*32],['same, but first a 1×1 conv 256→32 then 5×5 conv 32→32 (no bias)',256*32+25*32*32]],
+  sol:'Depth concatenation just adds the depths: 64+128+32+32 = 256 (width and height must match). 1×1 conv: (1·1·256+1)·64 = 16,448. Direct 5×5: 25·256·32 = 204,800. With a 1×1 bottleneck first: 8,192 + 25,600 = 33,792, about 6× fewer. (The 1×1 trick is a standard fact; the lecture only says 1×1 convs "manipulate the number of channels".)'},
+ {t:'Q11 · ResNet block',q:'A residual block: out = ReLU(F(x) + x), where F = conv 3×3 (64→64, pad 1) → ReLU → conv 3×3 (64→64, pad 1), with bias, on a 56×56×64 input.',
+  items:[['parameters in F',2*cp(3,64,64)],['extra parameters added by the skip connection',0],['activations of F\'s first conv output',56*56*64],['output depth of the block',64]],
+  sol:`2·(3·3·64·64+64) = ${ths(2*cp(3,64,64))}. The identity skip adds no parameters (it only adds a stored tensor). F(x) and x must have the same shape (56×56×64) for the addition to work.`},
+ {type:'mcq',t:'Q12 · Concepts',mcq:[
+  {q:'In VGG-16, where are most of the parameters?',o:['Conv layers','FC layers (FC1 ≈ 103M)','Pooling layers'],a:1,why:'FC1 = 7·7·512·4096 = 102,760,448 of ≈138M total.'},
+  {q:'In VGG-16, where is most of the activation memory?',o:['Early conv layers (large spatial maps)','The last FC layers','Pooling layers have none'],a:0,why:'e.g. 224·224·64 ≈ 3.2M numbers after the first conv; FC outputs have only 4096.'},
+  {q:'Why must forward activations be stored during training?',o:['They are needed to compute gradients in the backward pass','To compute the loss','To update the bias only'],a:0,why:'dW uses the layer input and dX uses the layer weights; both need the forward values.'},
+  {q:'How many parameters does a pooling layer have?',o:['K·K','Equal to #channels','0 (it still passes gradients back)'],a:2,why:'But its outputs still count as activations.'},
+  {q:'You double the input image side (e.g. 32 → 64) in a conv-only network. What happens?',o:['Parameters ×4, activations ×4','Parameters unchanged, activations ×4','Parameters ×2, activations ×2'],a:1,why:'Conv parameters depend only on K, C_in and C_out. Activations scale with H·W.'},
+  {q:'Same change, but the net ends with FC layers after flattening. What now?',o:['FC parameters unchanged','The first FC layer\'s parameters grow, since its input size grows','All parameters shrink'],a:1,why:'FC params = (N_in+1)·N_out and N_in = H·W·C of the last map.'},
+  {q:'Do stride and padding change the number of parameters of a conv layer?',o:['Yes, both','No: they only change the output size (and so the activations)','Only padding'],a:1,why:'params = (K·K·C_in + 1)·C_out.'},
+  {q:'Why do conv layers add filters (6 → 16 in LeNet, 96 → 256 → 384 in AlexNet) while the maps shrink?',o:['The spatial size shrinks, so activations and conv cost stay manageable even with more filters','Pooling needs more filters','It reduces the parameters'],a:0,why:'Lecture: "the number of kernels increases with depth while the spatial size shrinks".'}]}
+];
+const SCORE2={};
+const upd2=()=>{const ok=Object.values(SCORE2).filter(Boolean).length;$('score2').innerHTML=`<b>Score:</b> ${ok} / ${PR2.length} problems fully correct`;};
+const near2=(a,b,tol=0)=>a!==''&&!isNaN(+String(a).replace(/,/g,''))&&Math.abs(+String(a).replace(/,/g,'')-b)<=tol+1e-9;
+function solFor(P){if(!P.sol)return '';if(P.sol.startsWith('tbl:')){const s=SPECS[P.sol.slice(4)];return netTable(T(s),{})+'<div class="small">Use the Network calculator above for the same table with the formulas.</div>';}return `<div class="terms">${P.sol}</div>`;}
+function renderProbs2(){const host=$('probs2');host.innerHTML='';
+ PR2.forEach((P,idx)=>{const card=document.createElement('div');card.className='card';let h=`<h2>${P.t}</h2>${P.q?`<p>${P.q}</p>`:''}`;
+  if(P.spec)h+=netTable(T(P.spec),{hide:true});
+  if(P.type==='mcq')h+=P.mcq.map((m,k)=>`<div class="mcq" style="margin-bottom:8px"><b>${k+1}. ${m.q}</b>${m.o.map((o,oi)=>`<label><input type="radio" name="n${idx}_${k}" value="${oi}"> ${o}</label>`).join('')}<div class="small why" data-k="${k}" style="display:none"></div></div>`).join('');
+  else h+=`<table>${P.items.map((it,k)=>`<tr><td style="padding:2px 12px 2px 0">${it[0]}</td><td><input class="c" style="width:110px" data-k="${k}"></td></tr>`).join('')}</table>`;
+  h+=`<div style="margin-top:8px"><button class="primary" data-a="c">Check</button> <button data-a="s">Show solution</button><span class="fb"></span></div><div class="sol"></div>`;
+  card.innerHTML=h;host.appendChild(card);const fb=card.querySelector('.fb'),sol=card.querySelector('.sol');
+  card.querySelector('[data-a=c]').onclick=()=>{let ok=true;
+   if(P.type==='mcq')P.mcq.forEach((m,k)=>{const r=card.querySelector(`input[name=n${idx}_${k}]:checked`);const g=r&&+r.value===m.a;ok=ok&&g;const w=card.querySelector(`.why[data-k="${k}"]`);w.style.display='block';w.style.color=g?'var(--ok)':'var(--bad)';w.textContent=(g?'✓ ':'✗ ')+m.why;});
+   else card.querySelectorAll('input.c').forEach(i=>{const it=P.items[+i.dataset.k];const g=near2(i.value,it[1],it[2]||0);i.className='c '+(g?'ok':'bad');ok=ok&&g;});
+   fb.textContent=ok?'✓ all correct':'✗ some answers are off';fb.className='fb '+(ok?'ok':'bad');SCORE2[idx]=ok;upd2();};
+  card.querySelector('[data-a=s]').onclick=()=>{if(!sol.innerHTML)sol.innerHTML=P.type==='mcq'?`<div class="terms">${P.mcq.map((m,k)=>`${k+1}. ${m.o[m.a]}`).join('<br>')}</div>`:solFor(P);sol.classList.toggle('on');};});upd2();}
+renderProbs2();
+
+function rnd2(){const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1)),pick=a=>a[ri(0,a.length-1)];
+  let spec,rows;for(let g=0;g<50;g++){const L=[`in ${pick([16,28,32])} ${pick([1,3])}`.replace(/^in (\d+) (\d+)$/,(m,a,b)=>`in ${a} ${a} ${b}`)];
+    for(let i=0;i<2;i++){const k=pick([3,5]);L.push(`conv ${k} ${pick([1,1,2])} ${pick([0,1,k===5?2:1])} ${pick([4,8,16,32])}`);if(Math.random()<.8)L.push('pool 2 2');}
+    L.push(`fc ${pick([10,64,128])}`);spec=L.join('\n');try{rows=T(spec);break;}catch(e){rows=null;}}
+  if(!rows){$('r2Box').textContent='Try again.';return;}
+  const TP=sumP(rows),TA=sumA(rows);
+  $('r2Box').innerHTML=netTable(rows,{hide:true})+`<p class="small">All layers have bias. Activations exclude the input.</p><table><tr><td style="padding-right:12px">total parameters</td><td><input class="c" id="r2p" style="width:110px"></td></tr><tr><td>total activations</td><td><input class="c" id="r2a" style="width:110px"></td></tr><tr><td>float32 activation memory (KB, 1 KB = 1000 B)</td><td><input class="c" id="r2m" style="width:110px"></td></tr></table>
+   <button class="primary" id="r2c">Check</button> <button id="r2s">Show solution</button><span class="fb" id="r2f"></span><div class="sol" id="r2sol"></div>`;
+  $('r2c').onclick=()=>{const a=near2($('r2p').value,TP),b=near2($('r2a').value,TA),c=near2($('r2m').value,TA*4/1000,0.05);$('r2p').className='c '+(a?'ok':'bad');$('r2a').className='c '+(b?'ok':'bad');$('r2m').className='c '+(c?'ok':'bad');const ok=a&&b&&c;$('r2f').textContent=ok?'✓ all correct':'✗ check the red cells';$('r2f').className='fb '+(ok?'ok':'bad');};
+  $('r2s').onclick=()=>{const b=$('r2sol');if(!b.innerHTML)b.innerHTML=netTable(rows,{})+`<div class="terms">memory = ${ths(TA)} × 4 B = ${ths(TA*4)} B = <span class="res">${(TA*4/1000).toFixed(2)} KB</span></div>`;b.classList.toggle('on');};}
+$('r2Go').onclick=rnd2;rnd2();
+</script>
+</body>
+</html>

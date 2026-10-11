@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Transposed convolution — interactive walkthrough + practice</title>
+<style>
+  :root{--bd:#d0d4dc;--mut:#667085;--acc:#2563eb;--bg:#f7f8fa;--ok:#16a34a;--bad:#dc2626}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;background:var(--bg);color:#1d2433;font-size:14px}
+  header{background:#111827;color:#fff;padding:14px 22px}
+  header h1{margin:0;font-size:19px}
+  header p{margin:4px 0 0;color:#cbd5e1;font-size:13px}
+  .controls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:10px 22px;background:#fff;border-bottom:1px solid var(--bd)}
+  .controls label{font-size:13px;color:#374151}
+  select,input[type=number],input[type=text]{padding:3px 6px;border:1px solid var(--bd);border-radius:5px;font-size:13px}
+  button{padding:4px 10px;border:1px solid var(--bd);background:#fff;border-radius:5px;cursor:pointer;font-size:13px}
+  button:hover{background:#eef2ff}
+  button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .shapes{padding:8px 22px;background:#eef2ff;font-size:13px;border-bottom:1px solid var(--bd)}
+  .shapes b{color:#1e3a8a}
+  nav{display:flex;gap:2px;padding:0 22px;background:#fff;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+  nav button{border:none;border-bottom:3px solid transparent;border-radius:0;padding:10px 14px;font-size:14px}
+  nav button.on{border-bottom-color:var(--acc);color:var(--acc);font-weight:600}
+  main{padding:16px 22px 60px;max-width:1400px}
+  .tab{display:none}.tab.on{display:block}
+  .row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .card{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 8px;font-size:16px}
+  .card h3{margin:12px 0 6px;font-size:14px}
+  .gwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .gwrap .cap{font-size:12px;color:var(--mut);text-align:center}
+  .grid{display:grid;gap:3px}
+  .cell{position:relative;min-height:46px;border:1px solid var(--bd);border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;font-variant-numeric:tabular-nums;padding:2px;transition:background .12s}
+  .cell .tag{position:absolute;top:1px;left:3px;font-size:10px;color:var(--mut)}
+  .cell .v{font-size:15px;font-weight:600}
+  .cell .sym{font-size:10px;color:#374151;line-height:1.25;text-align:center}
+  .cell.pad{background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 4px,#e5e7eb 4px,#e5e7eb 8px);color:#9ca3af}
+  .cell.crop{background:repeating-linear-gradient(-45deg,#fef2f2,#fef2f2 4px,#fee2e2 4px,#fee2e2 8px)}
+  .cell.sel{outline:3px solid #111827;outline-offset:-1px}
+  .cell.win{outline:3px dashed #f59e0b;outline-offset:-1px}
+  .cell.dim{opacity:.35}
+  .op{font-size:22px;color:var(--mut);align-self:center}
+  .formula{font-family:"STIX Two Math","Cambria Math",Georgia,serif;font-size:16px;background:#f9fafb;border-left:4px solid var(--acc);padding:8px 12px;margin:8px 0;overflow-x:auto}
+  .terms{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;line-height:1.7;overflow-x:auto}
+  .terms .lbl{color:#94a3b8}
+  .terms .res{color:#fde68a;font-weight:700}
+  .bridge{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 14px;margin:10px 0}
+  .bridge b{color:#9a3412}
+  table.t{border-collapse:collapse;font-size:13px}
+  table.t th,table.t td{border:1px solid var(--bd);padding:5px 9px;text-align:center}
+  table.t th{background:#f3f4f6}
+  table.mat{border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums}
+  table.mat td,table.mat th{border:1px solid #e5e7eb;padding:2px 5px;text-align:center;min-width:28px}
+  table.mat th{background:#f9fafb;font-weight:500;cursor:pointer}
+  table.mat td.z{color:#d1d5db}
+  .small{font-size:12px;color:var(--mut)}
+  .stepbar{display:flex;align-items:center;gap:10px;margin:6px 0 10px}
+  .stepbar input[type=range]{width:260px}
+  textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px;width:150px;height:84px;border:1px solid var(--bd);border-radius:5px;padding:4px}
+  details summary{cursor:pointer;color:var(--acc)}
+  .warn{color:#b91c1c;font-size:12px}
+  /* practice */
+  .prob{border-left:4px solid var(--acc)}
+  .prob .q{margin:4px 0 10px}
+  .ansgrid{display:grid;gap:3px}
+  .ansgrid input{width:58px;height:34px;text-align:center;font-size:14px;border:1px solid var(--bd);border-radius:5px;font-variant-numeric:tabular-nums}
+  .ansgrid input.ok{background:#dcfce7;border-color:var(--ok)}
+  .ansgrid input.bad{background:#fee2e2;border-color:var(--bad)}
+  input.one{width:80px}
+  input.one.ok{background:#dcfce7;border-color:var(--ok)}
+  input.one.bad{background:#fee2e2;border-color:var(--bad)}
+  .fb{font-weight:600;margin-left:8px}
+  .fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
+  .sol{display:none;margin-top:10px}
+  .sol.on{display:block}
+  .mini{display:inline-grid;gap:2px;vertical-align:middle;margin:0 4px}
+  .mini div{border:1px solid var(--bd);min-width:30px;padding:2px 4px;text-align:center;font-size:12px;background:#fff;border-radius:3px;font-variant-numeric:tabular-nums}
+  .mcq label{display:block;margin:4px 0;cursor:pointer}
+  .score{position:sticky;top:0;background:#ecfdf5;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:12px;z-index:5}
+</style>
+</head>
+<body>
+<header>
+  <h1>Transposed convolution ("deconvolution"): how to compute it</h1>
+  <p>M2L8 S1 §5 · Each input pixel stamps (pixel × kernel) onto the output, and overlapping stamps are summed. Includes a stamp walkthrough, the equivalent-convolution view, the matrix view, and practice problems.</p>
+</header>
+
+<div class="controls">
+  <label>Preset
+    <select id="preset">
+      <option value="slide">Slide 15: 3×3 X, K = [1 −1; 2 −2], s=1</option>
+      <option value="s2ov">Stride 2, 3×3 kernel (overlap)</option>
+      <option value="s2no">Stride 2, 2×2 kernel (no overlap)</option>
+      <option value="pad">Stride 2, padding 1 (crop)</option>
+      <option value="bp">Conv backprop link: dout ⊛ᵀ W = ∂L/∂X</option>
+    </select>
+  </label>
+  <label>Stride s <select id="stride"><option>1</option><option>2</option><option>3</option></select></label>
+  <label>Padding p <select id="pad"><option>0</option><option>1</option><option>2</option></select></label>
+  <details><summary>Edit X / K</summary>
+    <div class="row" style="gap:10px;margin-top:6px">
+      <div><div class="small">X (input to the transposed conv)</div><textarea id="taX"></textarea></div>
+      <div><div class="small">K (kernel)</div><textarea id="taK"></textarea></div>
+      <div><button id="apply">Apply</button><div id="edWarn" class="warn"></div></div>
+    </div>
+  </details>
+</div>
+<div class="shapes" id="shapes"></div>
+
+<nav id="nav">
+  <button data-t="idea" class="on">0 · Idea &amp; size formula</button>
+  <button data-t="stamp">1 · Stamp method (scatter)</button>
+  <button data-t="gather">2 · One output cell (gather)</button>
+  <button data-t="eq">3 · As a normal conv (zero-insert + flip)</button>
+  <button data-t="mat">4 · Why "transposed": the matrix</button>
+  <button data-t="prac">5 · Practice problems</button>
+</nav>
+
+<main>
+<!-- ================= IDEA ================= -->
+<section class="tab on" id="t-idea">
+  <div class="card">
+    <h2>Normal conv vs transposed conv (slide 14)</h2>
+    <table class="t">
+      <tr><th></th><th>Normal convolution (encoder)</th><th>Transposed convolution (decoder)</th></tr>
+      <tr><td>one step</td><td>dot product of kernel and an input <b>patch</b> → <b>1</b> output value</td><td><b>1</b> input pixel × whole kernel → a k×k <b>stamp</b> on the output</td></tr>
+      <tr><td>overlaps</td><td>patches overlap in the input (inputs get reused)</td><td>stamps overlap in the output, and <b>overlapping values are summed</b></td></tr>
+      <tr><td>size (stride 1)</td><td>H − k + 1 (shrinks)</td><td>H + k − 1 (grows)</td></tr>
+      <tr><td>general size</td><td>⌊(H − k + 2p)/s⌋ + 1</td><td><b>(H − 1)·s + k − 2p</b></td></tr>
+      <tr><td>stride means</td><td>move the patch s pixels in the input</td><td>move the stamp s pixels in the output for each input pixel step (upsamples about ×s)</td></tr>
+      <tr><td>padding means</td><td>add p zeros around the input</td><td><b>crop</b> p rows/cols off each side of the full output</td></tr>
+    </table>
+    <div class="formula">out<sub>full</sub>(r, c) = Σ<sub>i,j</sub> X(i, j) · K(r − s·i, c − s·j) &nbsp;&nbsp;(terms where the K index falls outside the kernel are dropped) &nbsp;&nbsp;→&nbsp; out = out<sub>full</sub>[p : −p, p : −p]</div>
+    <p class="small">Read it as "input pixel (i,j) puts its stamp with top-left corner at (s·i, s·j); kernel cell (a,b) lands on output (s·i + a, s·j + b)."</p>
+  </div>
+
+  <div class="card">
+    <h2>Output-size calculator</h2>
+    <div class="row" style="gap:12px;align-items:center">
+      <label>H <input type="number" id="cH" value="3" style="width:56px"></label>
+      <label>k <input type="number" id="ck" value="2" style="width:56px"></label>
+      <label>s <input type="number" id="cs" value="1" style="width:56px"></label>
+      <label>p <input type="number" id="cp" value="0" style="width:56px"></label>
+      <span id="cOut" class="formula" style="margin:0"></span>
+    </div>
+    <p class="small">Sanity check: a transposed conv with (k, s, p) maps H back to the size that a normal conv with the same (k, s, p) would shrink from. That's why decoders mirror encoders. Example: conv k=4, s=2, p=1 takes 8 to 4, and transposed conv k=4, s=2, p=1 takes 4 to 8.</p>
+  </div>
+
+  <div class="card">
+    <h2>Recipe for exams</h2>
+    <ol>
+      <li><b>Size first:</b> full output = (H−1)·s + k per side. Draw an empty grid of that size.</li>
+      <li><b>For each input pixel (i,j)</b> in reading order: multiply the whole kernel by X(i,j) and add it into the grid with its top-left at (s·i, s·j).</li>
+      <li><b>Sum overlaps</b> (they happen only when k &gt; s; if k &lt; s there are zero gaps).</li>
+      <li><b>Crop</b> p from every side if there is padding.</li>
+      <li><b>Spot-check one cell</b> with the gather formula: out(r,c) = Σ X(i,j)·K(r−s·i, c−s·j).</li>
+    </ol>
+    <div class="bridge"><b>Do NOT flip the kernel</b> in the stamp method: kernel cell (0,0) goes to the stamp's top-left. A flip only appears when you rewrite it as a normal cross-correlation (tab 3). The lecture also mentions a non-learned variant: the decoder uses the encoder's conv kernel rotated 180°. That's a choice of which K to use; the computation itself is unchanged.</div>
+  </div>
+</section>
+
+<!-- ================= STAMP ================= -->
+<section class="tab" id="t-stamp">
+  <div class="card">
+    <h2>Stamp method: step through the input pixels</h2>
+    <div class="stepbar"><button id="stPrev">◀</button><input type="range" id="stStep" min="0" value="0"><button id="stNext">▶</button><button id="stAll">all</button><span id="stLbl"></span></div>
+    <p class="small">Click an input pixel to jump to its stamp. Cells hatched red are cropped by padding p. Each output cell lists the stamps that have landed on it so far.</p>
+    <div class="row" id="stGrids"></div>
+    <div class="terms" id="stTerms"></div>
+  </div>
+</section>
+
+<!-- ================= GATHER ================= -->
+<section class="tab" id="t-gather">
+  <div class="card">
+    <h2>Compute one output cell directly (the fast way to answer "what is out(r,c)?")</h2>
+    <div class="formula">out(r, c) = Σ<sub>i,j</sub> X(i, j) · K(r + p − s·i, &nbsp;c + p − s·j)</div>
+    <p class="small">Click an output cell. Highlighted input pixels are the ones whose stamp covers this cell. Each is labeled with the kernel entry it uses. To find them: for each input pixel, check whether 0 ≤ r+p − s·i &lt; k (and the same for columns).</p>
+    <div class="row" id="gaGrids"></div>
+    <div class="terms" id="gaTerms"></div>
+  </div>
+</section>
+
+<!-- ================= EQUIVALENT CONV ================= -->
+<section class="tab" id="t-eq">
+  <div class="card">
+    <h2>The same result as a normal stride-1 cross-correlation</h2>
+    <ol class="small">
+      <li><b>Zero-insert:</b> put s−1 zeros between the input pixels (this is why it's also called a "fractionally strided" conv, stride 1/s).</li>
+      <li><b>Pad</b> with k−1 zeros on every side.</li>
+      <li><b>Rotate K by 180°</b> and slide it with stride 1 (an ordinary cross-correlation).</li>
+      <li><b>Crop</b> p from each side.</li>
+    </ol>
+    <p class="small">This is exactly the "pad dout, rotate W, cross-correlate" recipe for ∂L/∂X from M2L6 S2 (B4). Click an output cell.</p>
+    <div class="row" id="eqGrids"></div>
+    <div class="terms" id="eqTerms"></div>
+  </div>
+</section>
+
+<!-- ================= MATRIX ================= -->
+<section class="tab" id="t-mat">
+  <div class="card">
+    <h2>Why it's called "transposed": out = Cᵀ · x</h2>
+    <p>Write a normal conv (kernel K, stride s, going from the big map to the small map) as a matrix: <b>y = C·z</b>, with z flattened. The transposed conv is <b>out = Cᵀ·x</b>, the same matrix transposed, mapping small back to big.</p>
+    <ul class="small">
+      <li><b>Column</b> j of Cᵀ is input pixel j's stamp: the kernel laid out in the output. Click a column header.</li>
+      <li><b>Row</b> r of Cᵀ lists which input pixels feed output cell r, and through which kernel weight (gather). Click a row header.</li>
+      <li>Cᵀ undoes the <b>shape</b> change, not the values: C·(Cᵀx) ≠ x in general, so it isn't an inverse. "Deconvolution" is a misleading name.</li>
+    </ul>
+    <div id="matWarn" class="warn"></div>
+    <div class="row">
+      <div id="matTbl" style="overflow:auto;max-width:100%"></div>
+      <div id="matSide"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= PRACTICE ================= -->
+<section class="tab" id="t-prac">
+  <div class="score" id="score"></div>
+  <div id="probs"></div>
+  <div class="card prob">
+    <h2>Random drill (unlimited)</h2>
+    <div class="row" style="gap:12px;align-items:center">
+      <label>input size <select id="rH"><option>2</option><option selected>3</option></select></label>
+      <label>kernel <select id="rK"><option selected>2</option><option>3</option></select></label>
+      <label>stride <select id="rS"><option selected>1</option><option>2</option></select></label>
+      <label>padding <select id="rP"><option selected>0</option><option>1</option></select></label>
+      <button class="primary" id="rGo">New problem</button>
+    </div>
+    <div id="rProb" style="margin-top:10px"></div>
+  </div>
+</section>
+</main>
+
+<script>
+const WCOL=['#ef4444','#22c55e','#3b82f6','#a855f7','#f97316','#06b6d4','#ec4899','#84cc16','#14b8a6'];
+const ICOL=['#fde68a','#bfdbfe','#bbf7d0','#fbcfe8','#ddd6fe','#fed7aa','#a5f3fc','#d9f99d','#fecaca','#e9d5ff','#c7d2fe','#fef08a','#99f6e4','#fda4af','#bae6fd','#f5d0fe'];
+const tint=(i,a=.3)=>{const h=WCOL[i%WCOL.length];const n=parseInt(h.slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`;};
+const PRESETS={
+  slide:{X:[[120,150,120],[100,50,110],[25,25,10]],K:[[1,-1],[2,-2]],s:1,p:0},
+  s2ov:{X:[[1,2],[3,4]],K:[[1,0,1],[0,1,0],[1,0,1]],s:2,p:0},
+  s2no:{X:[[1,2],[3,4]],K:[[1,-1],[2,0]],s:2,p:0},
+  pad:{X:[[1,2],[3,4]],K:[[1,1,1],[1,1,1],[1,1,1]],s:2,p:1},
+  bp:{X:[[-7,3,13],[17,27,37],[40,50,20]],K:[[1,2],[3,4]],s:1,p:0}
+};
+const S={X:null,K:null,s:1,p:0};
+const UI={step:0,ga:{r:1,c:1},matSel:null};
+let D={};
+const $=id=>document.getElementById(id);
+const mk=(r,c,f)=>Array.from({length:r},(_,i)=>Array.from({length:c},(_,j)=>f(i,j)));
+const fmt=v=>Number.isInteger(v)?String(v):(+v.toFixed(3)).toString();
+const fp=v=>v<0?`(${fmt(v)})`:fmt(v);
+
+function tconv(X,K,s,p){
+  const H=X.length,W=X[0].length,k1=K.length,k2=K[0].length;
+  const Hf=(H-1)*s+k1,Wf=(W-1)*s+k2;
+  const terms=mk(Hf,Wf,()=>[]);
+  for(let i=0;i<H;i++)for(let j=0;j<W;j++)for(let a=0;a<k1;a++)for(let b=0;b<k2;b++)terms[s*i+a][s*j+b].push({i,j,a,b});
+  const full=terms.map(r=>r.map(ts=>ts.reduce((t,o)=>t+X[o.i][o.j]*K[o.a][o.b],0)));
+  const Ho=Hf-2*p,Wo=Wf-2*p;
+  const out=Ho>0&&Wo>0?mk(Ho,Wo,(r,c)=>full[r+p][c+p]):[];
+  return {H,W,k1,k2,s,p,Hf,Wf,Ho,Wo,terms,full,out};
+}
+function compute(){D=tconv(S.X,S.K,S.s,S.p);}
+const inCrop=(r,c)=>r<D.p||c<D.p||r>=D.Hf-D.p||c>=D.Wf-D.p;
+const wi=(a,b)=>a*D.k2+b;
+const kN=(a,b)=>`K(${a},${b})`;
+
+function gridEl(rows,cols,cell,opt={}){
+  const g=document.createElement('div');g.className='grid';
+  g.style.gridTemplateColumns=`repeat(${cols},${opt.w||54}px)`;
+  for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){
+    const o=cell(i,j)||{};const c=document.createElement('div');
+    c.className='cell '+(o.cls||'');c.innerHTML=o.html??'';
+    if(o.bg)c.style.background=o.bg;if(o.title)c.title=o.title;
+    if(opt.h)c.style.minHeight=opt.h+'px';
+    if(opt.click)c.onclick=()=>opt.click(i,j);
+    g.appendChild(c);
+  }
+  return g;
+}
+function wrap(cap,el){const w=document.createElement('div');w.className='gwrap';w.appendChild(el);const c=document.createElement('div');c.className='cap';c.innerHTML=cap;w.appendChild(c);return w;}
+function opEl(t){const s=document.createElement('div');s.className='op';s.innerHTML=t;return s;}
+function fill(id,...els){const e=$(id);e.innerHTML='';els.forEach(x=>e.appendChild(x));}
+const cellHTML=(tag,v,sym)=>`<span class="tag">${tag}</span><span class="v">${v}</span>${sym?`<span class="sym">${sym}</span>`:''}`;
+const xGrid=(f,click)=>gridEl(D.H,D.W,(i,j)=>{const o=f?f(i,j):{};return {html:cellHTML(`X(${i},${j})`,fmt(S.X[i][j]),o.sym),bg:o.bg,cls:o.cls};},{click});
+const kGrid=(rot=false)=>gridEl(D.k1,D.k2,(a,b)=>{const A=rot?D.k1-1-a:a,B=rot?D.k2-1-b:b;return {html:cellHTML(kN(A,B),fmt(S.K[A][B])),bg:tint(wi(A,B),.35)};});
+
+function renderShapes(){
+  const st=D.s,pp=D.p;
+  $('shapes').innerHTML=`X <b>${D.H}×${D.W}</b> · K <b>${D.k1}×${D.k2}</b> · s=<b>${st}</b> · p=<b>${pp}</b> → full = (${D.H}−1)·${st}+${D.k1} = <b>${D.Hf}</b>` +
+    (pp?` → crop ${pp} per side → out <b>${D.Ho}×${D.Wo}</b>`:` → out <b>${D.Ho}×${D.Wo}</b>`)+
+    ` &nbsp;|&nbsp; stamps ${D.k1>st?'<b>overlap</b> (k &gt; s)':D.k1===st?'tile exactly (k = s)':'leave <b>gaps</b> (k &lt; s)'}`;
+}
+
+/* ---------- size calc ---------- */
+function calc(){const H=+$('cH').value,k=+$('ck').value,s=+$('cs').value,p=+$('cp').value;
+  const o=(H-1)*s+k-2*p;const back=Math.floor((o-k+2*p)/s)+1;
+  $('cOut').innerHTML=`(${H}−1)·${s} + ${k} − 2·${p} = <b>${o}</b> &nbsp;&nbsp;<span class="small">(check: conv(k=${k},s=${s},p=${p}) on ${o} → ⌊(${o}−${k}+${2*p})/${s}⌋+1 = ${back})</span>`;}
+['cH','ck','cs','cp'].forEach(id=>$(id).oninput=calc);
+
+/* ---------- STAMP ---------- */
+function renderStamp(){
+  const N=D.H*D.W;const st=$('stStep');st.max=N;if(UI.step>N)UI.step=N;st.value=UI.step;const n=UI.step;
+  const cur=n>0?{i:Math.floor((n-1)/D.W),j:(n-1)%D.W}:null;
+  $('stLbl').textContent=n===0?'step 0: empty output':`stamped ${n} of ${N} input pixels`;
+  const acc=mk(D.Hf,D.Wf,()=>({v:0,t:[]}));
+  for(let m=0;m<n;m++){const i=Math.floor(m/D.W),j=m%D.W;for(let a=0;a<D.k1;a++)for(let b=0;b<D.k2;b++){const T=acc[D.s*i+a][D.s*j+b];T.v+=S.X[i][j]*S.K[a][b];T.t.push({i,j,a,b});}}
+  const xg=xGrid((i,j)=>{const idx=i*D.W+j;return {bg:idx<n?ICOL[idx%ICOL.length]:'',cls:cur&&cur.i===i&&cur.j===j?'sel':''};},(i,j)=>{UI.step=i*D.W+j+1;renderStamp();});
+  const contrib=gridEl(D.k1,D.k2,(a,b)=>cur?{html:cellHTML(kN(a,b),fmt(S.X[cur.i][cur.j]*S.K[a][b]),`${fp(S.X[cur.i][cur.j])}·${fp(S.K[a][b])}`),bg:ICOL[(n-1)%ICOL.length]}:{html:'–'},{w:78,h:54});
+  const og=gridEl(D.Hf,D.Wf,(r,c)=>{const T=acc[r][c];let win=false;if(cur){const a=r-D.s*cur.i,b=c-D.s*cur.j;win=a>=0&&a<D.k1&&b>=0&&b<D.k2;}
+    const sym=T.t.map(o=>`${fp(S.X[o.i][o.j])}·${fp(S.K[o.a][o.b])}`).join('+');
+    const last=T.t.length?T.t[T.t.length-1]:null;
+    return {html:cellHTML(`(${r},${c})`,T.t.length?fmt(T.v):'0',sym),cls:(inCrop(r,c)?'crop ':'')+(win?'win':''),bg:inCrop(r,c)?'':(T.t.length>1?'#fff7ed':(last?ICOL[(last.i*D.W+last.j)%ICOL.length]:''))};},{w:D.Wf>6?82:104,h:62});
+  fill('stGrids',wrap('X: click a pixel',xg),opEl('×'),wrap('K',kGrid()),opEl('='),wrap(cur?`stamp of X(${cur.i},${cur.j}) at top-left (${D.s*cur.i}, ${D.s*cur.j})`:'stamp',contrib),opEl('→'),wrap(`full output ${D.Hf}×${D.Wf} (dashed = current stamp, orange = overlap)`,og));
+  if(cur){
+    const lines=[];for(let a=0;a<D.k1;a++)for(let b=0;b<D.k2;b++)lines.push(`out(${D.s*cur.i+a},${D.s*cur.j+b}) += ${fp(S.X[cur.i][cur.j])}·${fp(S.K[a][b])} = ${fmt(S.X[cur.i][cur.j]*S.K[a][b])}`);
+    $('stTerms').innerHTML=`<span class="lbl">X(${cur.i},${cur.j}) = ${fmt(S.X[cur.i][cur.j])}, stamp top-left = (s·i, s·j) = (${D.s}·${cur.i}, ${D.s}·${cur.j}) = (${D.s*cur.i}, ${D.s*cur.j})</span><br>`+lines.join('<br>')+(n===N?`<br><span class="lbl">final output${D.p?` (after cropping ${D.p})`:''}:</span> <span class="res">${D.out.map(r=>'['+r.map(fmt).join(', ')+']').join(' ')}</span>`:'');
+  }else $('stTerms').innerHTML='<span class="lbl">Press ▶ or click an input pixel.</span>';
+}
+
+/* ---------- GATHER ---------- */
+function renderGather(){
+  if(D.Ho<=0){$('gaGrids').innerHTML='<span class="warn">output is empty (too much padding)</span>';$('gaTerms').innerHTML='';return;}
+  if(UI.ga.r>=D.Ho||UI.ga.c>=D.Wo)UI.ga={r:0,c:0};
+  const {r,c}=UI.ga,R=r+D.p,C=c+D.p;const ts=D.terms[R][C];const m={};ts.forEach(t=>m[t.i+','+t.j]=t);
+  const xg=xGrid((i,j)=>{const t=m[i+','+j];return t?{bg:tint(wi(t.a,t.b),.45),sym:`× ${kN(t.a,t.b)}`}:{cls:'dim'};});
+  const og=gridEl(D.Ho,D.Wo,(p,q)=>({html:cellHTML(`(${p},${q})`,fmt(D.out[p][q])),cls:p===r&&q===c?'sel':''}),{click:(p,q)=>{UI.ga={r:p,c:q};renderGather();}});
+  fill('gaGrids',wrap('X: pixels whose stamp covers the cell',xg),wrap('K',kGrid()),opEl('→'),wrap('output: click a cell',og));
+  const chk=[];for(let i=0;i<D.H;i++){const a=R-D.s*i;chk.push(`i=${i}: a = ${R}−${D.s}·${i} = ${a} ${a>=0&&a<D.k1?'✓':'✗'}`);}
+  const chkc=[];for(let j=0;j<D.W;j++){const b=C-D.s*j;chkc.push(`j=${j}: b = ${C}−${D.s}·${j} = ${b} ${b>=0&&b<D.k2?'✓':'✗'}`);}
+  $('gaTerms').innerHTML=`<span class="lbl">out(${r},${c}) = full(${R},${C})${D.p?` (shifted by p=${D.p})`:''}</span><br><span class="lbl">rows: </span>${chk.join(' · ')}<br><span class="lbl">cols: </span>${chkc.join(' · ')}<br><span class="lbl">sum : </span>${ts.map(t=>`X(${t.i},${t.j})·K(${t.a},${t.b})`).join(' + ')||'0 (no stamp reaches here: gap)'}<br><span class="lbl">nums: </span>${ts.map(t=>`${fp(S.X[t.i][t.j])}·${fp(S.K[t.a][t.b])}`).join(' + ')||'0'} = <span class="res">${fmt(D.out[r][c])}</span>`;
+}
+
+/* ---------- EQUIVALENT CONV ---------- */
+function renderEq(){
+  if(D.Ho<=0){$('eqGrids').innerHTML='';$('eqTerms').innerHTML='';return;}
+  if(UI.ga.r>=D.Ho||UI.ga.c>=D.Wo)UI.ga={r:0,c:0};
+  const {r,c}=UI.ga,s=D.s,k1=D.k1,k2=D.k2;
+  const Hd=(D.H-1)*s+1,Wd=(D.W-1)*s+1,PH=Hd+2*(k1-1),PW=Wd+2*(k2-1);
+  const z=(u,v)=>{const uu=u-(k1-1),vv=v-(k2-1);return uu>=0&&vv>=0&&uu<Hd&&vv<Wd&&uu%s===0&&vv%s===0?{i:uu/s,j:vv/s}:null;};
+  const R=r+D.p,C=c+D.p;
+  const zg=gridEl(PH,PW,(u,v)=>{const q=z(u,v);const inW=u-R>=0&&u-R<k1&&v-C>=0&&v-C<k2;
+    const kk=inW?{a:k1-1-(u-R),b:k2-1-(v-C)}:null;
+    if(!q)return {html:'<span class="v">0</span>',cls:'pad '+(inW?'win':'')};
+    return {html:cellHTML(`X(${q.i},${q.j})`,fmt(S.X[q.i][q.j])),cls:inW?'win':'',bg:kk?tint(wi(kk.a,kk.b),.5):''};},{w:PW>8?42:50,h:42});
+  const og=gridEl(D.Ho,D.Wo,(p,q)=>({html:cellHTML(`(${p},${q})`,fmt(D.out[p][q])),cls:p===r&&q===c?'sel':''}),{click:(p,q)=>{UI.ga={r:p,c:q};renderEq();}});
+  fill('eqGrids',wrap(`X ${s>1?`zero-inserted (${s-1} between) + `:''}padded by k−1=${k1-1}${D.p?`<br>(window shown at full-output position (${R},${C}))`:''}`,zg),opEl('⋆'),wrap('K rotated 180°',kGrid(true)),opEl('='),wrap(`output${D.p?` (cropped by ${D.p})`:''}: click a cell`,og));
+  const sy=[],nu=[];let tot=0;
+  for(let a=0;a<k1;a++)for(let b=0;b<k2;b++){const q=z(R+a,C+b);const A=k1-1-a,B=k2-1-b;
+    if(q){sy.push(`X(${q.i},${q.j})·K(${A},${B})`);nu.push(`${fp(S.X[q.i][q.j])}·${fp(S.K[A][B])}`);tot+=S.X[q.i][q.j]*S.K[A][B];}else{sy.push(`0·K(${A},${B})`);nu.push('0');}}
+  $('eqTerms').innerHTML=`<span class="lbl">window: </span>${sy.join(' + ')}<br><span class="lbl">nums  : </span>${nu.join(' + ')} = <span class="res">${fmt(tot)}</span><br><span class="lbl">stamp method gives ${fmt(D.out[r][c])} ${Math.abs(tot-D.out[r][c])<1e-9?'✓ same':'✗'}</span>`;
+}
+
+/* ---------- MATRIX ---------- */
+function renderMat(){
+  const nIn=D.H*D.W,nOut=D.Hf*D.Wf;
+  if(nOut>64){$('matWarn').textContent=`Matrix would be ${nOut}×${nIn}; pick a smaller preset to display it.`;$('matTbl').innerHTML='';$('matSide').innerHTML='';return;}
+  $('matWarn').textContent='';
+  const M=mk(nOut,nIn,(o,n)=>{const r=Math.floor(o/D.Wf),c=o%D.Wf,i=Math.floor(n/D.W),j=n%D.W;const a=r-D.s*i,b=c-D.s*j;return a>=0&&a<D.k1&&b>=0&&b<D.k2?{a,b,v:S.K[a][b]}:null;});
+  const sel=UI.matSel;
+  let h='<table class="mat"><tr><th>out ↓ / X →</th>';
+  for(let n=0;n<nIn;n++){const on=sel&&sel.t==='c'&&sel.k===n;h+=`<th data-c="${n}" style="${on?'background:#fde68a':''}">X(${Math.floor(n/D.W)},${n%D.W})<br>${fmt(S.X[Math.floor(n/D.W)][n%D.W])}</th>`;}
+  h+='<th>= out</th></tr>';
+  for(let o=0;o<nOut;o++){const r=Math.floor(o/D.Wf),c=o%D.Wf;const ron=sel&&sel.t==='r'&&sel.k===o;
+    h+=`<tr><th data-r="${o}" style="${ron?'background:#fde68a':''}${inCrop(r,c)?';color:#b91c1c':''}">(${r},${c})</th>`;
+    for(let n=0;n<nIn;n++){const e=M[o][n];const hl=(sel&&sel.t==='c'&&sel.k===n)||ron;
+      h+=e?`<td style="background:${tint(wi(e.a,e.b),hl?.55:.2)}">${fmt(e.v)}</td>`:`<td class="z" style="${hl?'background:#fefce8':''}">0</td>`;}
+    h+=`<td style="${ron?'background:#fde68a':''}"><b>${fmt(D.full[r][c])}</b></td></tr>`;}
+  h+='</table>';$('matTbl').innerHTML=h;
+  $('matTbl').querySelectorAll('th[data-c]').forEach(e=>e.onclick=()=>{UI.matSel={t:'c',k:+e.dataset.c};renderMat();});
+  $('matTbl').querySelectorAll('th[data-r]').forEach(e=>e.onclick=()=>{UI.matSel={t:'r',k:+e.dataset.r};renderMat();});
+  let side=`<p class="small">Cᵀ is ${nOut}×${nIn} (full output × input). Colors = kernel entry. ${D.p?'Red row labels are rows removed by cropping p.':''}</p>`;
+  if(sel&&sel.t==='c'){const i=Math.floor(sel.k/D.W),j=sel.k%D.W;
+    side+=`<div class="terms">column X(${i},${j}) = K laid out with top-left at (${D.s*i},${D.s*j})<br>× X(${i},${j}) = ${fmt(S.X[i][j])} gives exactly the stamp in tab 1.</div>`;}
+  if(sel&&sel.t==='r'){const r=Math.floor(sel.k/D.Wf),c=sel.k%D.Wf;const ts=D.terms[r][c];
+    side+=`<div class="terms">row (${r},${c}) · x = ${ts.map(t=>`${fp(S.K[t.a][t.b])}·${fp(S.X[t.i][t.j])}`).join(' + ')||'0'} = <span class="res">${fmt(D.full[r][c])}</span><br><span class="lbl">same as the gather view (tab 2)</span></div>`;}
+  $('matSide').innerHTML=side;
+}
+
+/* ---------- PRACTICE ---------- */
+const miniM=M=>`<span class="mini" style="grid-template-columns:repeat(${M[0].length},auto)">${M.flat().map(v=>`<div>${fmt(v)}</div>`).join('')}</span>`;
+function solHTML(X,K,s,p,cells){
+  const T=tconv(X,K,s,p);let h=`<div class="terms"><span class="lbl">size: (${T.H}−1)·${s}+${T.k1} = ${T.Hf}${T.W!==T.H||T.k1!==T.k2?` × (${T.W}−1)·${s}+${T.k2} = ${T.Wf}`:''}${p?`, crop ${p} per side → ${T.Ho}×${T.Wo}`:''}</span><br>`;
+  if(cells){cells.forEach(([r,c])=>{const ts=T.terms[r+p][c+p];h+=`out(${r},${c}) = ${ts.map(t=>`X(${t.i},${t.j})·K(${t.a},${t.b})`).join(' + ')||'0'} = ${ts.map(t=>`${fp(X[t.i][t.j])}·${fp(K[t.a][t.b])}`).join(' + ')||'0'} = <span class="res">${fmt(T.out[r][c])}</span><br>`;});}
+  else{for(let i=0;i<T.H;i++)for(let j=0;j<T.W;j++)h+=`<span class="lbl">stamp X(${i},${j})=${fmt(X[i][j])} at (${s*i},${s*j}):</span> ${fmt(X[i][j])}·K = ${miniM(K.map(r=>r.map(v=>v*X[i][j])))}<br>`;
+    h+=`<span class="lbl">sum overlaps${p?` (full ${T.Hf}×${T.Wf}) then crop`:''} →</span><br>`+(p?`full ${miniM(T.full)} → `:'')+`<span class="res">out</span> ${miniM(T.out)}`;}
+  return h+'</div>';
+}
+const PROBS=[
+  {title:'P1 · Slide 15 example, full output',q:'Compute the full transposed convolution (stride 1, no padding). The lecture leaves this as an exercise.',X:PRESETS.slide.X,K:PRESETS.slide.K,s:1,p:0,ask:'full'},
+  {title:'P2 · Output sizes',q:'Give the output side length of a transposed conv for each case.',ask:'size',items:[[3,2,1,0],[3,3,2,0],[4,4,2,1],[7,3,2,1],[2,3,3,0],[5,2,2,0]]},
+  {title:'P3 · 1-D warm-up, stride 2',q:'x = [1, 2, 3], k = [1, 2, 1], stride 2. Each stamp is 3 wide and starts 2 to the right of the previous one, so neighbours overlap by one cell.',X:[[1,2,3]],K:[[1,2,1]],s:2,p:0,ask:'full'},
+  {title:'P4 · Stride 2, 2×2 kernel (k = s: no overlap)',q:'Stamps tile the output exactly, so no additions are needed.',X:PRESETS.s2no.X,K:PRESETS.s2no.K,s:2,p:0,ask:'full'},
+  {title:'P5 · Stride 2, 3×3 kernel (k > s: overlap)',q:'Each stamp is 3×3 but they start 2 apart, so the middle row and middle column get summed.',X:PRESETS.s2ov.X,K:PRESETS.s2ov.K,s:2,p:0,ask:'full'},
+  {title:'P6 · Padding crops the output',q:'Stride 2, padding 1. First find the full output, then remove 1 row/column from every side.',X:PRESETS.pad.X,K:PRESETS.pad.K,s:2,p:1,ask:'full'},
+  {title:'P7 · Single entries (gather formula)',q:'Using the slide-15 X and K (stride 1), compute only these entries. Don\'t build the whole output.',X:PRESETS.slide.X,K:PRESETS.slide.K,s:1,p:0,ask:'cells',cells:[[2,1],[3,3],[1,2]]},
+  {title:'P8 · Single entries at stride 2',q:'X = [[1,2,3],[4,5,6],[7,8,9]], K = [[1,2,3],[4,5,6],[7,8,9]], stride 2, no padding. Output is 7×7. Compute these entries.',X:[[1,2,3],[4,5,6],[7,8,9]],K:[[1,2,3],[4,5,6],[7,8,9]],s:2,p:0,ask:'cells',cells:[[0,0],[2,2],[3,2],[4,4]]},
+  {title:'P9 · Link to conv backprop (M2L6 S2)',q:'In the backprop-matrix example, a conv with W = [[1,2],[3,4]] (stride 1) received dout = [[−7,3,13],[17,27,37],[40,50,20]]. ∂L/∂X is the transposed conv of dout with W. Compute these entries of ∂L/∂X.',X:PRESETS.bp.X,K:PRESETS.bp.K,s:1,p:0,ask:'cells',cells:[[0,1],[1,1],[3,3]]},
+  {title:'P10 · Concepts',ask:'mcq',mcq:[
+    {q:'Why is it called "transposed" convolution?',o:['It transposes the kernel matrix K before convolving','If a conv is y = C·z, this layer computes Cᵀ·x','It swaps the height and width of the image','It is the matrix inverse of convolution'],a:1,why:'Writing the conv as a sparse matrix C, the transposed conv uses Cᵀ. Kernel entries are not transposed, and Cᵀ is not C⁻¹.'},
+    {q:'In the stamp method, do you rotate the kernel by 180°?',o:['Yes, always','No: kernel cell (a,b) lands at (s·i + a, s·j + b)','Only when stride > 1'],a:1,why:'The flip only appears in the equivalent "zero-insert, pad, cross-correlate" form (tab 3).'},
+    {q:'Stride 2, kernel 2×2. What happens where stamps meet?',o:['They overlap and are summed','They tile exactly: no overlap, no gaps','There are zero gaps between them'],a:1,why:'k = s, so each stamp starts exactly where the previous one ends. Overlaps happen when k > s and gaps when k < s.'},
+    {q:'Compared with max unpooling, transposed convolution…',o:['has learnable parameters (the kernel)','needs the max indices from the encoder','never sums overlapping values'],a:0,why:'Max unpooling has no parameters and reuses encoder indices. Transposed conv learns K, or uses the encoder kernel rotated 180°.'},
+    {q:'Padding p in a transposed conv…',o:['adds p zeros around the input','removes p rows/columns from each side of the full output','adds p zeros around the output'],a:1,why:'Output = (H−1)s + k − 2p: the −2p is the crop. It mirrors a conv with padding p.'}
+  ]}
+];
+let SCORE={};
+function updScore(){const tot=Object.keys(SCORE).length,ok=Object.values(SCORE).filter(Boolean).length;
+  $('score').innerHTML=`<b>Score:</b> ${ok} / ${PROBS.length} problems fully correct${tot?'':' (press Check on each problem)'}. Tip: cells with no stamp are 0, and blank inputs count as wrong.`;}
+function ansGrid(id,R,C){return `<div class="ansgrid" id="${id}" style="grid-template-columns:repeat(${C},58px)">${Array.from({length:R*C},(_,k)=>`<input data-k="${k}" inputmode="numeric">`).join('')}</div>`;}
+const near=(a,b)=>a!==''&&!isNaN(+a)&&Math.abs(+a-b)<1e-6;
+function renderProbs(){
+  const host=$('probs');host.innerHTML='';
+  PROBS.forEach((P,idx)=>{
+    const card=document.createElement('div');card.className='card prob';
+    let body=`<h2>${P.title}</h2><div class="q">${P.q||''}</div>`;
+    if(P.X)body+=`<div>X = ${miniM(P.X)} &nbsp; K = ${miniM(P.K)} &nbsp; stride ${P.s}, padding ${P.p}</div><br>`;
+    if(P.ask==='full'){const T=tconv(P.X,P.K,P.s,P.p);body+=`<div class="small">Answer grid (${T.Ho}×${T.Wo}). Work out the size yourself first!</div>`+ansGrid('a'+idx,T.Ho,T.Wo);}
+    if(P.ask==='cells')body+=P.cells.map(([r,c],k)=>`<label style="margin-right:14px">out(${r},${c}) = <input class="one" data-k="${k}"></label>`).join('');
+    if(P.ask==='size')body+=`<table class="t"><tr><th>H</th><th>k</th><th>s</th><th>p</th><th>output</th></tr>${P.items.map((it,k)=>`<tr><td>${it[0]}</td><td>${it[1]}</td><td>${it[2]}</td><td>${it[3]}</td><td><input class="one" data-k="${k}"></td></tr>`).join('')}</table>`;
+    if(P.ask==='mcq')body+=P.mcq.map((m,k)=>`<div class="mcq" style="margin-bottom:10px"><b>${k+1}. ${m.q}</b>${m.o.map((o,oi)=>`<label><input type="radio" name="m${idx}_${k}" value="${oi}"> ${o}</label>`).join('')}<div class="small why" data-k="${k}" style="display:none"></div></div>`).join('');
+    body+=`<div style="margin-top:10px"><button class="primary" data-act="check">Check</button> <button data-act="sol">Show solution</button>${P.X?` <button data-act="load">Load into walkthrough</button>`:''}<span class="fb"></span></div><div class="sol"></div>`;
+    card.innerHTML=body;host.appendChild(card);
+    const fb=card.querySelector('.fb'),sol=card.querySelector('.sol');
+    card.querySelector('[data-act=check]').onclick=()=>{
+      let ok=true;
+      if(P.ask==='full'){const T=tconv(P.X,P.K,P.s,P.p);card.querySelectorAll('.ansgrid input').forEach(inp=>{const k=+inp.dataset.k;const g=near(inp.value,T.out[Math.floor(k/T.Wo)][k%T.Wo]);inp.className=g?'ok':'bad';ok=ok&&g;});}
+      if(P.ask==='cells'){const T=tconv(P.X,P.K,P.s,P.p);card.querySelectorAll('input.one').forEach(inp=>{const [r,c]=P.cells[+inp.dataset.k];const g=near(inp.value,T.out[r][c]);inp.className='one '+(g?'ok':'bad');ok=ok&&g;});}
+      if(P.ask==='size')card.querySelectorAll('input.one').forEach(inp=>{const [H,k,s,p]=P.items[+inp.dataset.k];const g=near(inp.value,(H-1)*s+k-2*p);inp.className='one '+(g?'ok':'bad');ok=ok&&g;});
+      if(P.ask==='mcq')P.mcq.forEach((m,k)=>{const ch=card.querySelector(`input[name=m${idx}_${k}]:checked`);const g=ch&&+ch.value===m.a;ok=ok&&g;const w=card.querySelector(`.why[data-k="${k}"]`);w.style.display='block';w.innerHTML=(g?'✓ ':'✗ ')+m.why;w.style.color=g?'var(--ok)':'var(--bad)';});
+      fb.textContent=ok?'✓ all correct':'✗ some answers are off (red)';fb.className='fb '+(ok?'ok':'bad');SCORE[idx]=ok;updScore();};
+    card.querySelector('[data-act=sol]').onclick=()=>{
+      if(!sol.innerHTML){
+        if(P.ask==='full')sol.innerHTML=solHTML(P.X,P.K,P.s,P.p);
+        if(P.ask==='cells')sol.innerHTML=solHTML(P.X,P.K,P.s,P.p,P.cells)+(P.s>1?'<p class="small">Tip: for out(r,c) you need s·i ≤ r ≤ s·i + k − 1, i.e. i ∈ [⌈(r−k+1)/s⌉, ⌊r/s⌋]. Then the kernel index is a = r − s·i.</p>':'');
+        if(P.ask==='size')sol.innerHTML=`<div class="terms">${P.items.map(([H,k,s,p])=>`(${H}−1)·${s} + ${k} − 2·${p} = <span class="res">${(H-1)*s+k-2*p}</span>`).join('<br>')}</div><p class="small">Note (5,2,2,0) → 10 = 2×5: k = s = 2 gives an exact ×2 upsample. (4,4,2,1) → 8 is the classic DCGAN/U-Net "×2 up-conv".</p>`;
+        if(P.ask==='mcq')sol.innerHTML=`<div class="terms">${P.mcq.map((m,k)=>`${k+1}. ${m.o[m.a]}`).join('<br>')}</div>`;
+      }
+      sol.classList.toggle('on');};
+    const ld=card.querySelector('[data-act=load]');if(ld)ld.onclick=()=>{Object.assign(S,{X:P.X.map(r=>[...r]),K:P.K.map(r=>[...r]),s:P.s,p:P.p});UI.step=0;syncControls();renderAll();document.querySelector('#nav button[data-t=stamp]').click();window.scrollTo(0,0);};
+  });
+  updScore();
+}
+function randProb(){
+  const H=+$('rH').value,k=+$('rK').value,s=+$('rS').value,p=+$('rP').value;
+  const ri=()=>Math.floor(Math.random()*7)-3;
+  const X=mk(H,H,()=>Math.floor(Math.random()*5)+1),K=mk(k,k,ri);
+  const T=tconv(X,K,s,p);
+  if(T.Ho<=0){$('rProb').innerHTML='<span class="warn">That combination gives an empty output; change the settings.</span>';return;}
+  $('rProb').innerHTML=`<div>X = ${miniM(X)} &nbsp; K = ${miniM(K)} &nbsp; stride ${s}, padding ${p}</div><br><div class="small">Output size? <input class="one" id="rSize"> (then fill the grid)</div>${ansGrid('rGrid',T.Ho,T.Wo)}<div style="margin-top:8px"><button class="primary" id="rChk">Check</button> <button id="rSol">Show solution</button> <button id="rLoad">Load into walkthrough</button><span class="fb" id="rFb"></span></div><div class="sol" id="rSolBox"></div>`;
+  $('rChk').onclick=()=>{let ok=true;const sz=$('rSize');const g0=near(sz.value,T.Ho);sz.className='one '+(g0?'ok':'bad');ok=g0;
+    $('rGrid').querySelectorAll('input').forEach(inp=>{const kk=+inp.dataset.k;const g=near(inp.value,T.out[Math.floor(kk/T.Wo)][kk%T.Wo]);inp.className=g?'ok':'bad';ok=ok&&g;});
+    $('rFb').textContent=ok?'✓ all correct':'✗ check the red cells';$('rFb').className='fb '+(ok?'ok':'bad');};
+  $('rSol').onclick=()=>{const b=$('rSolBox');if(!b.innerHTML)b.innerHTML=solHTML(X,K,s,p);b.classList.toggle('on');};
+  $('rLoad').onclick=()=>{Object.assign(S,{X,K,s,p});UI.step=0;syncControls();renderAll();document.querySelector('#nav button[data-t=stamp]').click();window.scrollTo(0,0);};
+}
+$('rGo').onclick=randProb;
+
+/* ---------- plumbing ---------- */
+function renderAll(){compute();renderShapes();renderStamp();renderGather();renderEq();renderMat();}
+const toTxt=M=>M.map(r=>r.join(' ')).join('\n');
+const parse=t=>t.trim().split('\n').map(l=>l.trim().split(/[\s,]+/).map(Number));
+function syncControls(){$('stride').value=S.s;$('pad').value=S.p;$('taX').value=toTxt(S.X);$('taK').value=toTxt(S.K);}
+function loadPreset(k){const P=PRESETS[k];Object.assign(S,{X:P.X.map(r=>[...r]),K:P.K.map(r=>[...r]),s:P.s,p:P.p});UI.step=0;UI.matSel=null;syncControls();renderAll();}
+$('preset').onchange=e=>loadPreset(e.target.value);
+$('stride').onchange=e=>{S.s=+e.target.value;UI.step=0;UI.matSel=null;renderAll();};
+$('pad').onchange=e=>{S.p=+e.target.value;renderAll();};
+$('apply').onclick=()=>{try{const X=parse($('taX').value),K=parse($('taK').value);
+  if([X,K].some(M=>M.some(r=>r.length!==M[0].length||r.some(isNaN))))throw 'rows must be equal-length numbers';
+  S.X=X;S.K=K;UI.step=0;UI.matSel=null;$('edWarn').textContent='';renderAll();}catch(err){$('edWarn').textContent=String(err);}};
+$('stPrev').onclick=()=>{UI.step=Math.max(0,UI.step-1);renderStamp();};
+$('stNext').onclick=()=>{UI.step=Math.min(D.H*D.W,UI.step+1);renderStamp();};
+$('stAll').onclick=()=>{UI.step=D.H*D.W;renderStamp();};
+$('stStep').oninput=e=>{UI.step=+e.target.value;renderStamp();};
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='t-'+b.dataset.t));
+  if(b.dataset.t==='gather')renderGather();if(b.dataset.t==='eq')renderEq();});
+calc();loadPreset('slide');renderProbs();randProb();
+</script>
+</body>
+</html>

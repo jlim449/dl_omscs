@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Object detection: interactive guide (M2L8 S2 + S3)</title>
+<style>
+  :root{--bd:#d0d4dc;--mut:#667085;--acc:#2563eb;--bg:#f7f8fa;--ok:#16a34a;--bad:#dc2626}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;background:var(--bg);color:#1d2433;font-size:14px}
+  header{background:#111827;color:#fff;padding:14px 22px}
+  header h1{margin:0;font-size:19px}
+  header p{margin:4px 0 0;color:#cbd5e1;font-size:13px}
+  nav{display:flex;gap:2px;padding:0 22px;background:#fff;border-bottom:1px solid var(--bd);flex-wrap:wrap;position:sticky;top:0;z-index:10}
+  nav button{border:none;border-bottom:3px solid transparent;border-radius:0;padding:10px 12px;font-size:13.5px;background:none;cursor:pointer}
+  nav button.on{border-bottom-color:var(--acc);color:var(--acc);font-weight:600}
+  main{padding:16px 22px 60px;max-width:1400px}
+  .tab{display:none}.tab.on{display:block}
+  .row{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .col{flex:1;min-width:320px}
+  .card{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:14px 16px;margin-bottom:16px}
+  .card h2{margin:0 0 8px;font-size:16px}
+  .card h3{margin:12px 0 6px;font-size:14px}
+  button{padding:4px 10px;border:1px solid var(--bd);background:#fff;border-radius:5px;cursor:pointer;font-size:13px}
+  button:hover{background:#eef2ff}
+  button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+  button.seg.on{background:#1e3a8a;color:#fff;border-color:#1e3a8a}
+  select,input[type=number]{padding:3px 6px;border:1px solid var(--bd);border-radius:5px;font-size:13px}
+  .small{font-size:12px;color:var(--mut)}
+  .formula{font-family:"STIX Two Math","Cambria Math",Georgia,serif;font-size:16px;background:#f9fafb;border-left:4px solid var(--acc);padding:8px 12px;margin:8px 0;overflow-x:auto}
+  .terms{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;line-height:1.7;overflow-x:auto}
+  .terms .lbl{color:#94a3b8}.terms .res{color:#fde68a;font-weight:700}
+  .bridge{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 14px;margin:10px 0}
+  .bridge b{color:#9a3412}
+  .story{background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:10px 14px;margin:10px 0}
+  table.t{border-collapse:collapse;font-size:13px}
+  table.t th,table.t td{border:1px solid var(--bd);padding:4px 8px;text-align:center}
+  table.t th{background:#f3f4f6}
+  table.t tr.hl td{background:#fef9c3}
+  svg.scene{border:1px solid var(--bd);border-radius:6px;background:#fff;cursor:crosshair;user-select:none}
+  .pipe{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .pipe .blk{border:2px solid #94a3b8;border-radius:8px;padding:6px 10px;background:#f8fafc;font-size:13px;text-align:center}
+  .pipe .blk.learn{border-color:#16a34a;background:#f0fdf4}
+  .pipe .blk.nolearn{border-color:#dc2626;background:#fef2f2}
+  .pipe .blk.new{box-shadow:0 0 0 3px #fde68a}
+  .pipe .blk.click{cursor:pointer}
+  .pipe .blk.click:hover{filter:brightness(.95)}
+  .pipe .ar{color:#64748b;font-size:18px}
+  .evo{display:flex;gap:10px;flex-wrap:wrap}
+  .evo .e{flex:1;min-width:200px;border:2px solid var(--bd);border-radius:8px;padding:10px;cursor:pointer;background:#fff}
+  .evo .e.on{border-color:var(--acc);background:#eff6ff}
+  .evo .e h4{margin:0 0 4px}
+  .bar{display:flex;align-items:center;gap:6px;font-size:11px;margin:1px 0}
+  .bar .bl{width:78px;text-align:right;color:#475569}
+  .bar .bb{height:10px;background:var(--acc);border-radius:2px}
+  .chip{display:inline-block;padding:0 6px;border-radius:4px;color:#fff;font-weight:600;font-size:12px}
+  .fmap{display:grid;gap:1px;background:#e5e7eb;border:1px solid #cbd5e1;width:max-content}
+  .fmap div{width:30px;height:26px;background:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+  .kv{display:grid;grid-template-columns:auto auto;gap:2px 12px;font-size:13px}
+  .kv b{font-variant-numeric:tabular-nums}
+  /* practice */
+  .prob{border-left:4px solid var(--acc)}
+  input.one{width:90px;padding:3px 6px;border:1px solid var(--bd);border-radius:5px}
+  input.one.ok{background:#dcfce7;border-color:var(--ok)} input.one.bad{background:#fee2e2;border-color:var(--bad)}
+  .fb{font-weight:600;margin-left:8px}.fb.ok{color:var(--ok)}.fb.bad{color:var(--bad)}
+  .sol{display:none;margin-top:10px}.sol.on{display:block}
+  .mcq label{display:block;margin:3px 0;cursor:pointer}
+  .score{position:sticky;top:44px;background:#ecfdf5;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:12px;z-index:5}
+  .ansgrid{display:grid;gap:3px}
+  .ansgrid input{width:56px;height:32px;text-align:center;border:1px solid var(--bd);border-radius:5px}
+  .ansgrid input.ok{background:#dcfce7;border-color:var(--ok)}.ansgrid input.bad{background:#fee2e2;border-color:var(--bad)}
+  .mini{display:inline-grid;gap:2px;vertical-align:middle;margin:0 4px}
+  .mini div{border:1px solid var(--bd);min-width:28px;padding:2px 4px;text-align:center;font-size:12px;background:#fff;border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Object detection, visually: single-stage (S2), two-stage (S3), NMS and mAP</h1>
+  <p>Every tab uses the same cartoon image (cat, dog, car, bird), so you can see what each architecture actually does to a real picture.</p>
+</header>
+<nav id="nav">
+  <button data-t="map" class="on">0 · Big picture</button>
+  <button data-t="single">1 · Single-stage: grids &amp; anchors</button>
+  <button data-t="iou">2 · IoU + the two heads</button>
+  <button data-t="nms">3 · NMS step-by-step</button>
+  <button data-t="two">4 · Two-stage: R-CNN family</button>
+  <button data-t="roi">5 · ROI pooling</button>
+  <button data-t="rpn">6 · RPN &amp; anchors (Faster R-CNN)</button>
+  <button data-t="eval">7 · Evaluation: AP &amp; mAP</button>
+  <button data-t="prac">8 · Practice</button>
+</nav>
+<main>
+
+<!-- ================= BIG PICTURE ================= -->
+<section class="tab on" id="t-map">
+  <div class="card">
+    <h2>The task: image in, a list of boxes out (and the list can be any length)</h2>
+    <div class="row">
+      <div id="mapScene"></div>
+      <div class="col">
+        <p>A classifier outputs <b>one</b> label per image. A detector must output, for <b>each object</b>: a box (x, y, w, h) plus a class distribution. The lecture names two problems:</p>
+        <ol>
+          <li><b>Variable number of outputs.</b> This image has 4 objects; the next might have 0 or 40. A neural network's output has a <i>fixed</i> size.</li>
+          <li><b>Where to look.</b> Objects can be at any position and any scale (the bird is tiny, the car is big).</li>
+        </ol>
+        <div class="story"><b>Both families solve problem 1 the same way:</b> predict a <b>large fixed number</b> of candidate boxes (most of them "background" or low-score), then throw most away. They differ on problem 2:
+          <ul>
+            <li><b>Single-stage</b> (OverFeat, SSD, YOLO): every grid cell of the feature map directly predicts boxes + classes in <b>one pass</b>.</li>
+            <li><b>Two-stage</b> (R-CNN family): <b>first</b> propose "object-like" regions, <b>then</b> classify each one and refine its box.</li>
+          </ul></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>The full pipeline (click a block to jump to its tab)</h2>
+    <div class="pipe" id="bigPipe">
+      <div class="blk click" data-go="single">image</div><span class="ar">→</span>
+      <div class="blk click learn" data-go="single">backbone CNN<br><span class="small">ImageNet-pretrained, fully conv</span></div><span class="ar">→</span>
+      <div class="blk click learn" data-go="iou">heads<br><span class="small">class scores + box (x,y,w,h)</span></div><span class="ar">→</span>
+      <div class="blk click" data-go="nms">thousands of raw boxes</div><span class="ar">→</span>
+      <div class="blk click nolearn" data-go="nms">NMS<br><span class="small">non-learned cleanup</span></div><span class="ar">→</span>
+      <div class="blk click" data-go="nms">final list</div><span class="ar">→</span>
+      <div class="blk click" data-go="eval">score it: IoU → AP → mAP</div>
+    </div>
+    <p class="small">Green = learned (has weights). Red = hand-designed algorithm. Two-stage detectors insert "propose regions → ROI pooling" between the backbone and the heads (tabs 4–6).</p>
+  </div>
+  <div class="card">
+    <h2>Cheat-sheet comparison</h2>
+    <table class="t">
+      <tr><th>model</th><th>family</th><th>where candidates come from</th><th>how many</th><th>key trick</th></tr>
+      <tr><td>OverFeat</td><td>single</td><td>grid of the fully-conv output, image fed at several scales</td><td>grid × scales</td><td>multi-scale image pyramid + NMS</td></tr>
+      <tr><td>SSD</td><td>single</td><td>grid cells × anchors on <b>6 feature maps</b></td><td><b>8732</b> per class</td><td>anchors + multi-resolution feature maps</td></tr>
+      <tr><td>YOLO (v1)</td><td>single</td><td>one <b>7×7</b> grid, 2 boxes per cell</td><td>98 boxes; output <b>7×7×30</b></td><td>single scale, custom net, fast</td></tr>
+      <tr><td>R-CNN</td><td>two</td><td>selective search (non-learned)</td><td>~thousands</td><td>crop + resize each region, run CNN <b>per crop</b></td></tr>
+      <tr><td>Fast R-CNN</td><td>two</td><td>selective search</td><td>~thousands</td><td>CNN <b>once</b>, crop the feature map, <b>ROI pooling</b></td></tr>
+      <tr><td>Faster R-CNN</td><td>two</td><td><b>RPN</b> (learned, same features)</td><td>H·W·k anchors → top-N</td><td>anchors; 2k + 4k outputs; 4 losses</td></tr>
+      <tr><td>Mask R-CNN</td><td>two</td><td>RPN</td><td>top-N</td><td>+ mask head, RoIAlign</td></tr>
+    </table>
+    <p class="small">Lecture trade-off: two-stage = slower but tends to be more accurate, with 30+ hyper-parameters; single-stage = faster. Both use an ImageNet-pretrained backbone.</p>
+  </div>
+</section>
+
+<!-- ================= SINGLE STAGE ================= -->
+<section class="tab" id="t-single">
+  <div class="card">
+    <div style="margin-bottom:8px"><b>Model:</b>
+      <button class="seg" data-m="yolo">YOLO</button>
+      <button class="seg" data-m="ssd">SSD</button>
+      <button class="seg" data-m="over">OverFeat (multi-scale)</button>
+    </div>
+    <div id="singleBody"></div>
+  </div>
+</section>
+
+<!-- ================= IoU + HEADS ================= -->
+<section class="tab" id="t-iou">
+  <div class="card">
+    <h2>IoU playground: drag the red box (drag a corner to resize)</h2>
+    <div class="row">
+      <div><svg id="iouSvg" width="480" height="330" viewBox="0 0 16 11" style="border:1px solid var(--bd);border-radius:6px;background:#fff;touch-action:none"></svg>
+        <div class="small">Coordinates snap to whole units, so you can check your hand calculation.</div></div>
+      <div class="col">
+        <div class="formula">IoU = area(A ∩ B) / area(A ∪ B) = I / (area A + area B − I)</div>
+        <div class="terms" id="iouOut"></div>
+        <p>IoU threshold: <input type="range" id="iouThr" min="0.1" max="0.9" step="0.05" value="0.5"> <b id="iouThrV">0.5</b></p>
+        <div id="iouVerdict" style="font-size:16px;font-weight:600"></div>
+        <p class="small">IoU is used twice: to score a detection (it counts as a hit if IoU &gt; 0.5, tab 7) and inside NMS (drop a box if its IoU with a better box is above the threshold, tab 3).</p>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>The multi-headed network (slide 23): one trunk, two heads, losses added</h2>
+    <svg viewBox="0 0 760 170" width="760" height="170">
+      <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#475569"/></marker></defs>
+      <rect x="5" y="60" width="80" height="50" rx="6" fill="#e0f2fe" stroke="#0284c7"/><text x="45" y="90" text-anchor="middle" font-size="13">image</text>
+      <line x1="85" y1="85" x2="125" y2="85" stroke="#475569" marker-end="url(#arr)"/>
+      <rect x="125" y="45" width="200" height="80" rx="6" fill="#dcfce7" stroke="#16a34a"/><text x="225" y="80" text-anchor="middle" font-size="13">shared conv trunk</text><text x="225" y="98" text-anchor="middle" font-size="11" fill="#475569">(ImageNet-pretrained)</text>
+      <line x1="325" y1="70" x2="390" y2="35" stroke="#475569" marker-end="url(#arr)"/><line x1="325" y1="100" x2="390" y2="135" stroke="#475569" marker-end="url(#arr)"/>
+      <rect x="390" y="10" width="170" height="50" rx="6" fill="#fef3c7" stroke="#d97706"/><text x="475" y="32" text-anchor="middle" font-size="13">classification head</text><text x="475" y="50" text-anchor="middle" font-size="11">class probs → cross-entropy</text>
+      <rect x="390" y="110" width="170" height="50" rx="6" fill="#fce7f3" stroke="#db2777"/><text x="475" y="132" text-anchor="middle" font-size="13">box-regression head</text><text x="475" y="150" text-anchor="middle" font-size="11">x, y, w, h → MSE</text>
+      <line x1="560" y1="35" x2="620" y2="75" stroke="#475569" marker-end="url(#arr)"/><line x1="560" y1="135" x2="620" y2="95" stroke="#475569" marker-end="url(#arr)"/>
+      <rect x="620" y="60" width="135" height="50" rx="6" fill="#f1f5f9" stroke="#475569"/><text x="687" y="82" text-anchor="middle" font-size="12">L = λ₁·CE + λ₂·MSE</text><text x="687" y="100" text-anchor="middle" font-size="11" fill="#475569">gradients sum in trunk</text>
+    </svg>
+    <div class="row">
+      <div class="col">
+        <p>Using the boxes above (A = ground truth, B = prediction):</p>
+        <p>predicted probability of the true class p = <input type="range" id="pTrue" min="0.02" max="0.99" step="0.01" value="0.7"> <b id="pTrueV"></b></p>
+        <p>λ<sub>cls</sub> = <input type="number" id="lc" value="1" step="0.5" style="width:60px"> &nbsp; λ<sub>box</sub> = <input type="number" id="lb" value="1" step="0.5" style="width:60px"></p>
+      </div>
+      <div class="col"><div class="terms" id="lossOut"></div></div>
+    </div>
+    <div class="bridge"><b>Why "gradients sum":</b> the trunk's output feeds both heads, so it has two outgoing edges in the computation graph. Backprop adds the gradient from each head (the same rule as weight sharing in conv backprop). The λ weights are hyper-parameters that set how much each task pulls on the shared features.</div>
+  </div>
+</section>
+
+<!-- ================= NMS ================= -->
+<section class="tab" id="t-nms">
+  <div class="card">
+    <h2>Non-maximum suppression: from a cloud of boxes to one box per object</h2>
+    <div class="row">
+      <div id="nmsScene"></div>
+      <div class="col">
+        <div style="margin-bottom:6px">Scenario: <button class="seg nmsS" data-s="std">standard</button> <button class="seg nmsS" data-s="crowd">two cats side by side</button></div>
+        <p>IoU threshold <input type="range" id="nmsThr" min="0.1" max="0.9" step="0.05" value="0.5"> <b id="nmsThrV"></b> &nbsp;
+           score threshold <input type="range" id="nmsSc" min="0" max="0.9" step="0.05" value="0.3"> <b id="nmsScV"></b></p>
+        <p><button class="primary" id="nmsStep">Step</button> <button id="nmsRun">Run to end</button> <button id="nmsReset">Reset</button></p>
+        <div class="terms" id="nmsLog"></div>
+      </div>
+    </div>
+    <div class="formula">repeat: &nbsp;① pick the highest-scoring remaining box → <b>keep</b> it &nbsp; ② delete every remaining box (same class) with IoU &gt; threshold against it &nbsp; ③ until none remain</div>
+    <div id="nmsTable"></div>
+    <div class="bridge"><b>Things to try:</b> (1) In the "two cats" scenario, lower the IoU threshold to 0.3: the second real cat gets deleted, because NMS can't tell a duplicate from a neighbor. (2) Raise it to 0.8: duplicates survive. (3) NMS runs per class, so a dog box never suppresses a cat box. The lecture calls NMS "traditional CV, not really deep learning"; the recipe here is the standard one, written up in your note.</div>
+  </div>
+</section>
+
+<!-- ================= TWO STAGE ================= -->
+<section class="tab" id="t-two">
+  <div class="card">
+    <h2>The R-CNN family: each version fixes the previous one's bottleneck</h2>
+    <div class="evo" id="evo"></div>
+    <div id="evoBody" style="margin-top:12px"></div>
+  </div>
+  <div class="card">
+    <h2>Why R-CNN is slow: the same pixels get convolved over and over</h2>
+    <div class="row">
+      <div id="propScene"></div>
+      <div class="col">
+        <p>number of region proposals <input type="range" id="nProp" min="10" max="2000" step="10" value="200"> <b id="nPropV"></b></p>
+        <div class="terms" id="propOut"></div>
+        <p class="small">Selective search (non-learned, slow at 1+ s per image) returns thousands of boxes, mostly background or object parts. R-CNN warps each one to the CNN input size and runs the <b>whole CNN</b> on it. The overlaps mean the same convolution on the same pixels is recomputed many times; that's the waste Fast R-CNN removes.</p>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Mask R-CNN: Faster R-CNN + "which pixels inside the box are the object?"</h2>
+    <div class="row">
+      <div id="maskView"></div>
+      <div class="col">
+        <div style="margin-bottom:6px">ROI: <button class="seg maskB" data-o="0">cat</button> <button class="seg maskB" data-o="1">dog</button> <button class="seg maskB" data-o="2">car</button> &nbsp; <label><input type="checkbox" id="maskOn" checked> show mask</label></div>
+        <p>For each ROI the mask head outputs a small grid (here 28×28, as in the paper) of foreground/background probabilities. The box alone says "cat around here"; the mask says <b>which pixels</b> are the cat and which are grass. That makes it <b>instance segmentation</b>.</p>
+        <p class="small">Losses: RPN objectness, RPN box, head class, head box (the 4 from Faster R-CNN) + <b>mask loss</b>. Slide 39 shows RoIAlign: a version of ROI pooling that skips rounding to whole cells. It matters for pixel-accurate masks; the lecture doesn't go into it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ROI POOLING ================= -->
+<section class="tab" id="t-roi">
+  <div class="card">
+    <h2>ROI pooling: any size region → fixed-size grid (so the FC layers can take it)</h2>
+    <div style="margin-bottom:8px">ROI: <span id="roiBtns"></span> &nbsp; output grid:
+      <select id="roiOut"><option value="2,2">2×2</option><option value="3,3">3×3</option><option value="4,3" selected>4×3 (lecture)</option><option value="3,4">3×4</option><option value="7,7">7×7</option></select>
+      <span class="small"> &nbsp;(or click-drag on the image to draw your own ROI)</span></div>
+    <div class="row">
+      <div class="gw"><div id="roiScene"></div><div class="small">① ROI in image pixels</div></div>
+      <div class="gw"><div id="roiFmap"></div><div class="small">② projected onto the 14×14 feature map (stride 32), split into bins</div></div>
+      <div class="gw"><div id="roiPooled"></div><div class="small">③ max of each bin = fixed output</div></div>
+    </div>
+    <div class="terms" id="roiOutTxt" style="margin-top:10px"></div>
+    <div class="bridge"><b>Step by step:</b> (1) Divide the ROI's image coordinates by the backbone stride (32 here) to find its feature-map cells; this works because each feature-map cell has a known receptive field. (2) Lay a fixed grid (e.g. 4×3) over that region. (3) Max-pool each bin. Different ROIs give regions of different sizes, but the output is always 4×3. Backprop routes the gradient to the max cell of each bin, as in max pooling. Try the bird (tiny) and the car (big).</div>
+  </div>
+</section>
+
+<!-- ================= RPN ================= -->
+<section class="tab" id="t-rpn">
+  <div class="card">
+    <h2>Region Proposal Network: anchors on every feature-map cell</h2>
+    <div class="row">
+      <div id="rpnScene"></div>
+      <div class="col">
+        <p>Click anywhere on the image to pick the nearest <b>anchor point</b> (feature-map cell center, stride 32 → 14×14 points).</p>
+        <p>scales <select id="rpnS"><option value="1">1 (128)</option><option value="2">2 (64,128)</option><option value="3" selected>3 (64,128,256)</option></select>
+           aspect ratios <select id="rpnR"><option value="1">1 (1:1)</option><option value="3" selected>3 (1:2, 1:1, 2:1)</option></select></p>
+        <div class="terms" id="rpnOut"></div>
+        <p>show top-N proposals over the whole image: <input type="range" id="rpnTop" min="0" max="60" value="0"> <b id="rpnTopV">0</b></p>
+        <p class="small">Colors use the Faster R-CNN paper's labeling rule (not stated in the lecture): <span class="chip" style="background:#16a34a">object: IoU ≥ 0.7, or the best anchor for some GT</span> <span class="chip" style="background:#94a3b8">in between, ignored</span> <span class="chip" style="background:#ef4444">IoU &lt; 0.3 background</span>. Here we pretend objectness = IoU with the nearest ground-truth box, to show what a trained RPN would score highly.</p>
+      </div>
+    </div>
+    <div class="pipe">
+      <div class="blk learn">shared feature map<br><span class="small">H×W×C</span></div><span class="ar">→</span>
+      <div class="blk learn">3×3 sliding window<br><span class="small">→ 256-d vector per cell</span></div><span class="ar">→</span>
+      <div class="blk learn">cls layer: <b>2k</b> scores<br><span class="small">object / not, per anchor</span></div>
+      <div class="blk learn">reg layer: <b>4k</b> numbers<br><span class="small">nudge each anchor</span></div><span class="ar">→</span>
+      <div class="blk">top-N by objectness<br><span class="small">= ROIs</span></div><span class="ar">→</span>
+      <div class="blk learn">ROI pooling + head<br><span class="small">class + box again</span></div>
+    </div>
+    <div class="bridge"><b>Four losses:</b> ① RPN objectness, ② RPN box refinement, ③ head classification over categories, ④ head box refinement. <b>Why anchors?</b> This is the same trick as SSD: a fixed grid × k fixed boxes gives a fixed-size output, which solves the variable-count problem. <b>Non-differentiable part:</b> moving a proposal changes which features get cropped into ROI pooling, so the gradient w.r.t. the box coordinates isn't well defined. One fix is to alternate between training the RPN and the head.</div>
+  </div>
+</section>
+
+<!-- ================= EVAL ================= -->
+<section class="tab" id="t-eval">
+  <div class="card">
+    <h2>From detections to AP to mAP (slide 28)</h2>
+    <div style="margin-bottom:6px">Class: <span id="evClsBtns"></span> &nbsp; IoU threshold for a hit: <select id="evThr"><option>0.5</option><option>0.75</option></select></div>
+    <div class="row">
+      <div class="col" style="flex:1.3">
+        <div id="evTable"></div>
+        <p>score threshold (operating point) <input type="range" id="evSc" min="0" max="1" step="0.01" value="0.5"> <b id="evScV"></b></p>
+        <div class="terms" id="evOp"></div>
+      </div>
+      <div class="col">
+        <svg id="prSvg" width="340" height="320" viewBox="0 0 340 320"></svg>
+        <div id="ev11"></div>
+      </div>
+    </div>
+    <div class="formula">AP = (1/11) Σ<sub>r ∈ {0, 0.1, …, 1}</sub> p<sub>interp</sub>(r), &nbsp; p<sub>interp</sub>(r) = max precision at any recall ≥ r &nbsp;&nbsp;&nbsp; mAP = mean of AP over classes</div>
+    <div id="mapOut"></div>
+    <div class="bridge"><b>Recipe:</b> ① Sort the class's detections by score. ② Walk down the list: a detection is a TP if IoU &gt; threshold with a ground-truth box that hasn't been claimed yet; otherwise it's an FP (bad box, duplicate, or background). ③ After each row: precision = TP/(TP+FP) and recall = TP/(#GT). ④ Read precision at the 11 recall levels. Taking "max precision to the right" is the standard VOC interpolation; the lecture just says "precision at recall 0, 0.1, …, 1". ⑤ Average the APs over classes to get mAP. Switching to IoU 0.75 shows that sloppy boxes turn into FPs.</div>
+  </div>
+</section>
+
+<!-- ================= PRACTICE ================= -->
+<section class="tab" id="t-prac">
+  <div class="score" id="score"></div>
+  <div id="probs"></div>
+</section>
+</main>
+
+<script>
+/* ======================= shared scene ======================= */
+const GT=[{c:'cat',b:[40,180,200,402]},{c:'dog',b:[222,228,362,410]},{c:'car',b:[248,40,432,166]},{c:'bird',b:[80,64,134,100]}];
+const CCOL={cat:'#f97316',dog:'#a16207',car:'#2563eb',bird:'#db2777'};
+const SCENE=`<rect width="448" height="448" fill="#dbeafe"/><rect y="200" width="448" height="248" fill="#bbf7d0"/>
+<circle cx="400" cy="200" r="0" />
+<g><ellipse cx="104" cy="84" rx="24" ry="14" fill="#db2777"/><circle cx="124" cy="76" r="9" fill="#db2777"/><polygon points="131,72 134,77 130,79" fill="#f59e0b"/><ellipse cx="98" cy="80" rx="12" ry="6" fill="#9d174d"/></g>
+<g><ellipse cx="120" cy="330" rx="78" ry="72" fill="#fb923c"/><circle cx="120" cy="228" r="36" fill="#fb923c"/><polygon points="88,214 96,180 112,200" fill="#fb923c"/><polygon points="128,200 144,180 152,214" fill="#fb923c"/><circle cx="108" cy="224" r="4" fill="#111"/><circle cx="132" cy="224" r="4" fill="#111"/></g>
+<g><ellipse cx="292" cy="362" rx="70" ry="48" fill="#ca8a04"/><circle cx="300" cy="268" r="38" fill="#ca8a04"/><ellipse cx="266" cy="262" rx="10" ry="24" fill="#854d0e"/><ellipse cx="334" cy="262" rx="10" ry="24" fill="#854d0e"/><circle cx="288" cy="262" r="4" fill="#111"/><circle cx="312" cy="262" r="4" fill="#111"/><ellipse cx="300" cy="284" rx="7" ry="5" fill="#111"/></g>
+<g><rect x="248" y="96" width="184" height="50" rx="10" fill="#3b82f6"/><rect x="290" y="40" width="100" height="62" rx="12" fill="#3b82f6"/><rect x="302" y="50" width="34" height="34" rx="4" fill="#e0f2fe"/><rect x="344" y="50" width="34" height="34" rx="4" fill="#e0f2fe"/><circle cx="290" cy="150" r="16" fill="#1f2937"/><circle cx="392" cy="150" r="16" fill="#1f2937"/></g>`;
+function inside(c,x,y){const E=(cx,cy,rx,ry)=>((x-cx)/rx)**2+((y-cy)/ry)**2<=1;
+  if(c==='cat')return E(120,330,78,72)||E(120,228,36,36)||(y>=180&&y<=214&&((x>=88&&x<=112&&y>=180+(Math.abs(x-96)*1.5))||(x>=128&&x<=152&&y>=180+(Math.abs(x-144)*1.5))));
+  if(c==='dog')return E(292,362,70,48)||E(300,268,38,38)||E(266,262,10,24)||E(334,262,10,24);
+  if(c==='car')return (x>=248&&x<=432&&y>=96&&y<=146)||(x>=290&&x<=390&&y>=40&&y<=102)||E(290,150,16,16)||E(392,150,16,16);
+  if(c==='bird')return E(104,84,24,14)||E(124,76,9,9);return false;}
+const iou=(a,b)=>{const ix=Math.max(0,Math.min(a[2],b[2])-Math.max(a[0],b[0])),iy=Math.max(0,Math.min(a[3],b[3])-Math.max(a[1],b[1]));const I=ix*iy;const U=(a[2]-a[0])*(a[3]-a[1])+(b[2]-b[0])*(b[3]-b[1])-I;return U>0?I/U:0;};
+const R=(b,o={})=>`<rect x="${b[0]}" y="${b[1]}" width="${b[2]-b[0]}" height="${b[3]-b[1]}" fill="${o.fill||'none'}" stroke="${o.stroke||'#000'}" stroke-width="${o.sw||2}" ${o.dash?`stroke-dasharray="${o.dash}"`:''} opacity="${o.op??1}" ${o.fo!=null?`fill-opacity="${o.fo}"`:''}/>`;
+const TAG=(x,y,t,col,fs=12)=>`<g><rect x="${x}" y="${Math.max(0,y-fs-3)}" width="${t.length*fs*0.58+8}" height="${fs+4}" fill="${col}" rx="3"/><text x="${x+4}" y="${Math.max(fs,y-3)}" font-size="${fs}" fill="#fff" font-family="sans-serif">${t}</text></g>`;
+const scene=(over,w=448,id='')=>`<svg class="scene" ${id?`id="${id}"`:''} viewBox="0 0 448 448" width="${w}" height="${w}">${SCENE}${over}</svg>`;
+const gtOver=(o={})=>GT.map(g=>R(g.b,{stroke:CCOL[g.c],sw:o.sw||2.5,dash:o.dash})+(o.noTag?'':TAG(g.b[0],g.b[1],g.c,CCOL[g.c]))).join('');
+function svgPt(e,svg){const r=svg.getBoundingClientRect(),vb=svg.viewBox.baseVal;return {x:(e.clientX-r.left)/r.width*vb.width+vb.x,y:(e.clientY-r.top)/r.height*vb.height+vb.y};}
+const $=id=>document.getElementById(id);
+const f2=v=>(+v).toFixed(2),f3=v=>(+v).toFixed(3);
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function segInit(sel,cb){document.querySelectorAll(sel).forEach(b=>b.onclick=()=>{document.querySelectorAll(sel).forEach(x=>x.classList.toggle('on',x===b));cb(b);});}
+
+/* ======================= MAP ======================= */
+$('mapScene').innerHTML=scene(gtOver(),380);
+document.querySelectorAll('#bigPipe [data-go]').forEach(b=>b.onclick=()=>goTab(b.dataset.go));
+
+/* ======================= SINGLE STAGE ======================= */
+const VOC=['aeroplane','bicycle','bird','boat','bottle','bus','car','cat','chair','cow','table','dog','horse','motorbike','person','plant','sheep','sofa','train','tv'];
+const SS={m:'yolo',S:7,cell:null,ssdMap:2,ssdCell:null,ovScale:1};
+const SSD_MAPS=[{m:38,k:4,s:0.1},{m:19,k:6,s:0.2},{m:10,k:6,s:0.375},{m:5,k:6,s:0.55},{m:3,k:4,s:0.725},{m:1,k:4,s:0.9}];
+function ssdAnchors(mi,r,c){const M=SSD_MAPS[mi],s=M.s,sn=mi<5?SSD_MAPS[mi+1].s:1.0;const cx=(c+.5)/M.m*448,cy=(r+.5)/M.m*448;
+  const ars=M.k===4?[1,2,0.5]:[1,2,0.5,3,1/3];const out=ars.map(a=>({ar:a,w:s*Math.sqrt(a)*448,h:s/Math.sqrt(a)*448}));out.push({ar:'1′',w:Math.sqrt(s*sn)*448,h:Math.sqrt(s*sn)*448});
+  return out.map(o=>({...o,b:[cx-o.w/2,cy-o.h/2,cx+o.w/2,cy+o.h/2]}));}
+const ssdMatchTable=(()=>SSD_MAPS.map((M,mi)=>{const cnt=GT.map(()=>0);for(let r=0;r<M.m;r++)for(let c=0;c<M.m;c++)ssdAnchors(mi,r,c).forEach(a=>GT.forEach((g,gi)=>{if(iou(a.b,g.b)>=0.5)cnt[gi]++;}));return cnt;}))();
+function renderSingle(){
+  document.querySelectorAll('#t-single .seg').forEach(b=>b.classList.toggle('on',b.dataset.m===SS.m));
+  if(SS.m==='yolo')renderYolo();else if(SS.m==='ssd')renderSSD();else renderOver();
+}
+function gridLines(n,size=448,col='#1e293b',op=.35){let p='';const c=size/n;for(let i=1;i<n;i++)p+=`M${i*c},0V${size}M0,${i*c}H${size}`;return `<path d="${p}" stroke="${col}" stroke-width="${n>20?0.5:1}" opacity="${op}"/>`;}
+function renderYolo(){
+  const S=SS.S,B=2,C=20,cs=448/S;
+  const resp=GT.map(g=>({g,r:Math.floor((g.b[1]+g.b[3])/2/cs),c:Math.floor((g.b[0]+g.b[2])/2/cs)}));
+  let ov=resp.map(o=>`<rect x="${o.c*cs}" y="${o.r*cs}" width="${cs}" height="${cs}" fill="${CCOL[o.g.c]}" opacity=".35"/>`).join('')+gridLines(S)+gtOver({sw:1.5,dash:'5 3',noTag:true})+resp.map(o=>`<circle cx="${(o.g.b[0]+o.g.b[2])/2}" cy="${(o.g.b[1]+o.g.b[3])/2}" r="5" fill="${CCOL[o.g.c]}" stroke="#fff" stroke-width="2"/>`).join('');
+  const sel=SS.cell;let side='';
+  if(sel){const me=resp.find(o=>o.r===sel.r&&o.c===sel.c);ov+=`<rect x="${sel.c*cs}" y="${sel.r*cs}" width="${cs}" height="${cs}" fill="none" stroke="#111" stroke-width="4"/>`;
+    let b1,b2,conf1,conf2,cls;
+    if(me){const g=me.g.b,gw=g[2]-g[0],gh=g[3]-g[1],cx=(g[0]+g[2])/2,cy=(g[1]+g[3])/2;
+      b1={x:(cx-sel.c*cs)/cs,y:(cy-sel.r*cs)/cs,w:gw/448,h:gh/448};b2={x:b1.x,y:b1.y,w:b1.w*0.6,h:b1.h*1.3};conf1=0.86;conf2=0.21;
+      cls=VOC.map(v=>v===me.g.c?0.81:0.01);
+      ov+=R([cx-gw/2+4,cy-gh/2-3,cx+gw/2+4,cy+gh/2-3],{stroke:'#111',sw:3})+TAG(cx-gw/2+4,cy-gh/2-3,`box1 conf .86 → ${me.g.c}`,'#111');
+      const w2=b2.w*448,h2=b2.h*448;ov+=R([cx-w2/2,cy-h2/2,cx+w2/2,cy+h2/2],{stroke:'#64748b',sw:1.5,dash:'4 3'});}
+    else{b1={x:.5,y:.5,w:.2,h:.2};b2={x:.4,y:.6,w:.1,h:.3};conf1=0.04;conf2=0.02;cls=VOC.map(()=>0.05);}
+    const cell=(v)=>`<td>${f2(v)}</td>`;
+    side=`<h3>Cell (row ${sel.r}, col ${sel.c}): its ${B*5+C} output numbers</h3>
+      ${me?`<p>The <b>${me.g.c}</b>'s center falls in this cell, so this cell is <b>responsible</b> for predicting it.</p>`:`<p>No object's center falls here, so both box confidences should be ≈ 0 (background).</p>`}
+      <table class="t"><tr><th></th><th>x</th><th>y</th><th>w</th><th>h</th><th>conf</th></tr>
+      <tr><td>box 1</td>${cell(b1.x)}${cell(b1.y)}${cell(b1.w)}${cell(b1.h)}<td><b>${f2(conf1)}</b></td></tr>
+      <tr><td>box 2</td>${cell(b2.x)}${cell(b2.y)}${cell(b2.w)}${cell(b2.h)}<td>${f2(conf2)}</td></tr></table>
+      <p class="small">x, y = box center relative to this cell (0–1). w, h = relative to the whole image. (YOLO paper convention; the numbers are illustrative.)</p>
+      <div>${VOC.map((v,i)=>`<div class="bar"><span class="bl">${v}</span><span class="bb" style="width:${Math.max(2,cls[i]*160)}px;${cls[i]>.5?'background:'+(CCOL[v]||'#2563eb'):''}"></span><span>${f2(cls[i])}</span></div>`).join('')}</div>
+      <p class="small">20 class probabilities (Pascal VOC classes), shared by both boxes of the cell.</p>`;}
+  else side='<p>Click any grid cell.</p>';
+  $('singleBody').innerHTML=`<div class="row"><div>${scene(ov,448,'yoloSvg')}<div class="small">Shaded = cell containing an object's center (dot). Click a cell.</div>
+    <p>Grid S = <select id="yS"><option>4</option><option selected>7</option><option>14</option></select></p></div>
+    <div class="col"><div class="story"><b>YOLO in one sentence:</b> chop the image into an S×S grid. Each cell predicts B boxes (x, y, w, h, confidence) and one set of C class probabilities, all in a <b>single forward pass</b>. It uses a custom network that ends in FC layers and works at a <b>single scale</b>, which is why it's fast.</div>
+    <div class="formula">output tensor = S × S × (B·5 + C) = ${S} × ${S} × (2·5 + 20) = <b>${S}×${S}×30</b> = ${S*S*30} numbers → ${S*S*B} candidate boxes → NMS</div>
+    ${side}</div></div>`;
+  $('yS').value=S;$('yS').onchange=e=>{SS.S=+e.target.value;SS.cell=null;renderYolo();};
+  $('yoloSvg').onclick=e=>{const p=svgPt(e,$('yoloSvg'));SS.cell={r:Math.min(S-1,Math.floor(p.y/cs)),c:Math.min(S-1,Math.floor(p.x/cs))};renderYolo();};
+}
+function renderSSD(){
+  const mi=SS.ssdMap,M=SSD_MAPS[mi],cs=448/M.m;
+  let ov=gridLines(M.m)+gtOver({sw:2,noTag:true});
+  const matched=[];for(let r=0;r<M.m;r++)for(let c=0;c<M.m;c++)ssdAnchors(mi,r,c).forEach(a=>{let best=0,gi=-1;GT.forEach((g,i)=>{const v=iou(a.b,g.b);if(v>best){best=v;gi=i;}});if(best>=0.5)matched.push({a,gi,best});});
+  if(SS.showMatched)ov+=matched.map(m=>R(m.a.b,{stroke:CCOL[GT[m.gi].c],sw:1.2,op:.8})).join('');
+  let side='';
+  if(SS.ssdCell&&SS.ssdCell.mi===mi){const {r,c}=SS.ssdCell;const an=ssdAnchors(mi,r,c);
+    ov+=`<rect x="${c*cs}" y="${r*cs}" width="${cs}" height="${cs}" fill="#111" opacity=".25"/>`;
+    const rows=an.map(a=>{let best=0,gi=-1;GT.forEach((g,i)=>{const v=iou(a.b,g.b);if(v>best){best=v;gi=i;}});return {...a,best,gi};});
+    ov+=rows.map(a=>R(a.b,{stroke:a.best>=0.5?'#16a34a':'#111',sw:a.best>=0.5?3:1.5,dash:a.best>=0.5?'':'5 3'})).join('');
+    side=`<h3>Anchors of cell (${r}, ${c}) on the ${M.m}×${M.m} map</h3><table class="t"><tr><th>aspect ratio</th><th>w × h (px)</th><th>best IoU with a GT</th><th>matched?</th></tr>${rows.map(a=>`<tr><td>${typeof a.ar==='number'?(a.ar>=1?a.ar+':1':'1:'+Math.round(1/a.ar)):'1:1 (larger)'}</td><td>${Math.round(a.w)} × ${Math.round(a.h)}</td><td>${f2(a.best)}${a.gi>=0&&a.best>0?' ('+GT[a.gi].c+')':''}</td><td>${a.best>=0.5?'<b style="color:#16a34a">yes → trained to predict '+GT[a.gi].c+'</b>':'no → "background"'}</td></tr>`).join('')}</table>
+      <p class="small">For each anchor the network outputs 4 box offsets (Δcx, Δcy, w, h) and a confidence for each class (c₁…c_p, including background).</p>`;}
+  else side='<p>Click a cell to see its anchors.</p>';
+  const sumRows=SSD_MAPS.map((m,i)=>`<tr class="${i===mi?'hl':''}"><td>${m.m}×${m.m}</td><td>${m.k}</td><td>${m.m*m.m*m.k}</td><td>${Math.round(m.s*448)} px</td>${ssdMatchTable[i].map(v=>`<td>${v||'·'}</td>`).join('')}</tr>`).join('');
+  $('singleBody').innerHTML=`<div class="row"><div>${scene(ov,448,'ssdSvg')}
+    <p>feature map: ${SSD_MAPS.map((m,i)=>`<button class="seg ${i===mi?'on':''}" data-mi="${i}">${m.m}×${m.m}</button>`).join(' ')}</p>
+    <label><input type="checkbox" id="ssdShow" ${SS.showMatched?'checked':''}> show every anchor on this map with IoU ≥ 0.5 (${matched.length})</label></div>
+    <div class="col"><div class="story"><b>SSD in one sentence:</b> put a grid on <b>several</b> feature maps (early = big and fine, deep = small and coarse). Every cell gets a few <b>anchor boxes</b> of preset sizes and shapes, and each anchor predicts "nudge me by (Δx, Δy, w, h)" plus class scores. The count is fixed, so one network outputs everything; then NMS.</div>
+    ${side}
+    <h3>Where 8732 comes from, and which map catches which object</h3>
+    <table class="t"><tr><th>map</th><th>anchors / cell</th><th>boxes</th><th>anchor scale</th>${GT.map(g=>`<th style="color:${CCOL[g.c]}">${g.c}</th>`).join('')}</tr>${sumRows}
+    <tr><td colspan="2"><b>total</b></td><td><b>${SSD_MAPS.reduce((t,m)=>t+m.m*m.m*m.k,0)}</b></td><td></td><td colspan="${GT.length}" class="small">← anchors with IoU ≥ 0.5</td></tr></table>
+    <p class="small">Notice the <b>tiny bird</b> is matched only on the fine early maps, and the big car/cat/dog on coarser maps. That's the point of multi-resolution prediction. (Scales follow the SSD300 paper: 0.1, 0.2 … 0.9 of the image.)</p></div></div>`;
+  document.querySelectorAll('#singleBody [data-mi]').forEach(b=>b.onclick=()=>{SS.ssdMap=+b.dataset.mi;SS.ssdCell=null;renderSSD();});
+  $('ssdShow').onchange=e=>{SS.showMatched=e.target.checked;renderSSD();};
+  $('ssdSvg').onclick=e=>{const p=svgPt(e,$('ssdSvg'));SS.ssdCell={mi,r:Math.min(M.m-1,Math.floor(p.y/cs)),c:Math.min(M.m-1,Math.floor(p.x/cs))};renderSSD();};
+}
+function renderOver(){
+  const f=SS.ovScale,Wd=160,st=64,size=448*f;
+  const wins=[];for(let y=0;y+Wd<=size+1e-6;y+=st)for(let x=0;x+Wd<=size+1e-6;x+=st)wins.push([x,y,x+Wd,y+Wd]);
+  const best=GT.map(g=>{const gb=g.b.map(v=>v*f);let b=0,w=null;wins.forEach(W=>{const v=iou(W,gb);if(v>b){b=v;w=W;}});return {b,w,gb};});
+  let ov=`<g transform="scale(${f})">${SCENE}</g>`;
+  ov+=best.map((o,i)=>o.w&&o.b>0.3?R(o.w,{stroke:CCOL[GT[i].c],sw:4/f*f,fill:CCOL[GT[i].c],fo:.12}):'').join('');
+  ov+=R([0,0,Wd,Wd],{stroke:'#111',sw:3,dash:'6 4'})+TAG(4,Wd+18,'fixed window 160 px','#111');
+  const scales=[0.5,0.75,1,1.5,3];
+  const tbl=scales.map(s=>{const W=[];for(let y=0;y+Wd<=448*s+1e-6;y+=st)for(let x=0;x+Wd<=448*s+1e-6;x+=st)W.push([x,y,x+Wd,y+Wd]);
+    return `<tr class="${s===f?'hl':''}"><td>${s}×</td><td>${Math.round(448*s)}</td><td>${W.length}</td>${GT.map(g=>{const gb=g.b.map(v=>v*s);let b=0;W.forEach(w=>b=Math.max(b,iou(w,gb)));return `<td style="${b>=0.5?'font-weight:700;color:#16a34a':''}">${f2(b)}</td>`;}).join('')}</tr>`;}).join('');
+  $('singleBody').innerHTML=`<div class="row"><div><svg class="scene" viewBox="0 0 ${size} ${size}" width="${Math.min(520,size*0.75+60)}" height="${Math.min(520,size*0.75+60)}">${ov}</svg>
+    <p>image scale: ${scales.map(s=>`<button class="seg ${s===f?'on':''}" data-s="${s}">${s}×</button>`).join(' ')}</p></div>
+    <div class="col"><div class="story"><b>OverFeat's problem:</b> after conversion to fully convolutional, the network looks through a <b>fixed-size window</b> (its receptive field), here 160 px sliding with stride 64. A fixed window fits some object sizes and not others. <b>Fix:</b> feed the <b>same image at several scales</b>. Shrink the image to catch big objects, enlarge it to catch small ones. Every scale yields a grid of (class distribution + box) predictions, giving many overlapping guesses, so NMS merges them.</div>
+    <h3>Best window IoU for each object at each scale</h3>
+    <table class="t"><tr><th>scale</th><th>image px</th><th># windows</th>${GT.map(g=>`<th style="color:${CCOL[g.c]}">${g.c}</th>`).join('')}</tr>${tbl}</table>
+    <p class="small">Green = some window fits that object with IoU ≥ 0.5. No single scale fits everything: the big objects fit the window at 0.75–1×, but the tiny bird only fits once the image is enlarged 3×. Each window's box-regression head then refines its box to fit the object (not shown).</p></div></div>`;
+  document.querySelectorAll('#singleBody [data-s]').forEach(b=>b.onclick=()=>{SS.ovScale=+b.dataset.s;renderOver();});
+}
+document.querySelectorAll('#t-single .seg').forEach(b=>b.onclick=()=>{SS.m=b.dataset.m;renderSingle();});
+
+/* ======================= IoU + HEADS ======================= */
+const IB={A:[2,2,8,7],B:[5,4,12,9],drag:null};
+function renderIoU(){
+  const A=IB.A,B=IB.B;const ix1=Math.max(A[0],B[0]),iy1=Math.max(A[1],B[1]),ix2=Math.min(A[2],B[2]),iy2=Math.min(A[3],B[3]);
+  const iw=Math.max(0,ix2-ix1),ih=Math.max(0,iy2-iy1),I=iw*ih,aA=(A[2]-A[0])*(A[3]-A[1]),aB=(B[2]-B[0])*(B[3]-B[1]),U=aA+aB-I,v=I/U;
+  let g='';for(let x=0;x<=16;x++)g+=`<line x1="${x}" y1="0" x2="${x}" y2="11" stroke="#e5e7eb" stroke-width=".03"/>`;for(let y=0;y<=11;y++)g+=`<line x1="0" y1="${y}" x2="16" y2="${y}" stroke="#e5e7eb" stroke-width=".03"/>`;
+  for(let x=0;x<=16;x+=2)g+=`<text x="${x+.05}" y="10.9" font-size=".35" fill="#94a3b8">${x}</text>`;
+  const rr=(b,col,fo)=>`<rect x="${b[0]}" y="${b[1]}" width="${b[2]-b[0]}" height="${b[3]-b[1]}" fill="${col}" fill-opacity="${fo}" stroke="${col}" stroke-width=".08"/>`;
+  g+=rr(A,'#16a34a',.15)+rr(B,'#dc2626',.15)+(I>0?`<rect x="${ix1}" y="${iy1}" width="${iw}" height="${ih}" fill="#facc15" fill-opacity=".7"/>`:'');
+  g+=`<rect class="hB" x="${B[0]}" y="${B[1]}" width="${B[2]-B[0]}" height="${B[3]-B[1]}" fill="transparent" style="cursor:move"/>`;
+  g+=`<circle class="hC" cx="${B[2]}" cy="${B[3]}" r=".3" fill="#dc2626" style="cursor:nwse-resize"/><circle class="hA" cx="${A[2]}" cy="${A[3]}" r=".3" fill="#16a34a" style="cursor:nwse-resize"/>`;
+  g+=`<text x="${A[0]+.1}" y="${A[1]-.15}" font-size=".45" fill="#16a34a">A = ground truth</text><text x="${B[0]+.1}" y="${B[3]+.5}" font-size=".45" fill="#dc2626">B = prediction</text>`;
+  $('iouSvg').innerHTML=g;
+  $('iouOut').innerHTML=`<span class="lbl">A = (${A.join(', ')})  B = (${B.join(', ')})   [x1, y1, x2, y2]</span><br>
+    intersection: x ${ix1}…${ix2}, y ${iy1}…${iy2} → ${iw} × ${ih} = <b>${I}</b><br>area A = ${A[2]-A[0]}×${A[3]-A[1]} = ${aA}, &nbsp;area B = ${B[2]-B[0]}×${B[3]-B[1]} = ${aB}<br>
+    union = ${aA} + ${aB} − ${I} = <b>${U}</b><br>IoU = ${I}/${U} = <span class="res">${f3(v)}</span>`;
+  const thr=+$('iouThr').value;$('iouThrV').textContent=thr;
+  $('iouVerdict').innerHTML=v>thr?`<span style="color:#16a34a">IoU ${f3(v)} &gt; ${thr} → counts as a correct detection (TP)</span>`:`<span style="color:#dc2626">IoU ${f3(v)} ≤ ${thr} → a miss (FP)</span>`;
+  // loss
+  const p=+$('pTrue').value;$('pTrueV').textContent=p;const lc=+$('lc').value,lb=+$('lb').value;
+  const cvt=b=>[b[0],b[1],b[2]-b[0],b[3]-b[1]];const a=cvt(A),b=cvt(B);const d=a.map((x,i)=>b[i]-x);const mse=d.reduce((t,x)=>t+x*x,0)/4;const ce=-Math.log(p);
+  $('lossOut').innerHTML=`<span class="lbl">box as (x, y, w, h): GT (${a.join(', ')})  pred (${b.join(', ')})</span><br>MSE = ¼[${d.map(x=>`(${x})²`).join(' + ')}] = <b>${f3(mse)}</b><br>CE = −ln p = −ln ${p} = <b>${f3(ce)}</b><br>L = ${lc}·${f3(ce)} + ${lb}·${f3(mse)} = <span class="res">${f3(lc*ce+lb*mse)}</span><br><span class="lbl">Drag B onto A: MSE → 0 and IoU → 1. Raise p: CE → 0.</span>`;
+}
+(function(){const svg=$('iouSvg');
+  svg.onpointerdown=e=>{const t=e.target.classList;const p=svgPt(e,svg);if(t.contains('hB'))IB.drag={k:'move',p,orig:[...IB.B]};else if(t.contains('hC'))IB.drag={k:'rB'};else if(t.contains('hA'))IB.drag={k:'rA'};svg.setPointerCapture(e.pointerId);};
+  svg.onpointermove=e=>{if(!IB.drag)return;const p=svgPt(e,svg);const cl=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+    if(IB.drag.k==='move'){const dx=Math.round(p.x-IB.drag.p.x),dy=Math.round(p.y-IB.drag.p.y);const o=IB.drag.orig,w=o[2]-o[0],h=o[3]-o[1];const x=cl(o[0]+dx,0,16-w),y=cl(o[1]+dy,0,11-h);IB.B=[x,y,x+w,y+h];}
+    if(IB.drag.k==='rB')IB.B=[IB.B[0],IB.B[1],cl(Math.round(p.x),IB.B[0]+1,16),cl(Math.round(p.y),IB.B[1]+1,11)];
+    if(IB.drag.k==='rA')IB.A=[IB.A[0],IB.A[1],cl(Math.round(p.x),IB.A[0]+1,16),cl(Math.round(p.y),IB.A[1]+1,11)];
+    renderIoU();};
+  svg.onpointerup=()=>IB.drag=null;
+  ['iouThr','pTrue','lc','lb'].forEach(id=>$(id).oninput=renderIoU);})();
+
+/* ======================= NMS ======================= */
+const NMS_SC={
+  std:[{c:'cat',b:[44,176,204,404],s:.92},{c:'cat',b:[58,192,214,396],s:.85},{c:'cat',b:[30,198,188,410],s:.78},{c:'cat',b:[86,232,200,400],s:.55},{c:'cat',b:[20,170,150,330],s:.40},
+       {c:'dog',b:[218,224,366,414],s:.88},{c:'dog',b:[232,238,352,402],s:.80},{c:'dog',b:[200,250,372,422],s:.61},
+       {c:'car',b:[250,38,434,168],s:.95},{c:'car',b:[262,48,420,160],s:.70},{c:'car',b:[300,30,440,140],s:.45},
+       {c:'bird',b:[78,62,136,102],s:.66},{c:'dog',b:[150,250,260,380],s:.22}],
+  crowd:[{c:'cat',b:[40,180,200,402],s:.93},{c:'cat',b:[108,186,266,400],s:.90},{c:'cat',b:[52,190,210,396],s:.80},{c:'cat',b:[118,196,276,410],s:.74},{c:'cat',b:[70,183,232,402],s:.50}]
+};
+const NM={sc:'std',boxes:[],queue:[],done:false,log:[]};
+function nmsReset(){NM.boxes=NMS_SC[NM.sc].map((o,i)=>({...o,id:i+1,st:'pend'}));const sct=+$('nmsSc').value;NM.boxes.forEach(b=>{if(b.s<sct)b.st='low';});NM.log=[`sorted by score, removed ${NM.boxes.filter(b=>b.st==='low').length} box(es) below score threshold ${sct}`];NM.done=false;NM.cur=null;renderNMS();}
+function nmsStep(){if(NM.done)return;const thr=+$('nmsThr').value;const pend=NM.boxes.filter(b=>b.st==='pend').sort((a,b)=>b.s-a.s);
+  if(!pend.length){NM.done=true;NM.log.push('no boxes left → done. Final list = kept boxes.');NM.cur=null;renderNMS();return;}
+  const top=pend[0];top.st='keep';NM.cur=top.id;const sup=[];
+  pend.slice(1).forEach(b=>{if(b.c!==top.c)return;const v=iou(top.b,b.b);b.lastIoU=v;if(v>thr){b.st='sup';b.by=top.id;b.iouBy=v;sup.push(`#${b.id} (IoU ${f2(v)})`);}});
+  const kept=pend.slice(1).filter(b=>b.c===top.c&&b.st==='pend').map(b=>`#${b.id} (${f2(b.lastIoU)})`);
+  NM.log.push(`keep #${top.id} ${top.c} ${top.s} → suppress ${sup.join(', ')||'none'}${kept.length?`; survive: ${kept.join(', ')}`:''}`);renderNMS();}
+function renderNMS(){
+  $('nmsThrV').textContent=$('nmsThr').value;$('nmsScV').textContent=$('nmsSc').value;
+  const ov=NM.boxes.map(b=>{const col=CCOL[b.c];
+    if(b.st==='low')return R(b.b,{stroke:'#94a3b8',sw:1,dash:'2 3',op:.6});
+    if(b.st==='sup')return R(b.b,{stroke:col,sw:1,dash:'3 3',op:.35});
+    const thick=b.st==='keep'?4:1.8;return R(b.b,{stroke:col,sw:thick,op:b.st==='keep'?1:.8})+TAG(b.b[0]+(b.st==='keep'?0:4),b.b[1]+(b.st==='keep'?0:16),`#${b.id} ${b.s}`,b.id===NM.cur?'#111':col,11);}).join('');
+  const cat2=NM.sc==='crowd'?`<g transform="translate(65,0)">${SCENE.match(/<g><ellipse cx="120"[\s\S]*?<\/g>/)[0]}</g>`:'';
+  $('nmsScene').innerHTML=scene(cat2+ov,430);
+  $('nmsLog').innerHTML=NM.log.map((l,i)=>`<span class="lbl">${i===0?'start':'step '+i}:</span> ${l}`).join('<br>');
+  const st={pend:'waiting',keep:'<b style="color:#16a34a">KEPT</b>',sup:'suppressed',low:'below score thr'};
+  $('nmsTable').innerHTML=`<table class="t"><tr><th>#</th><th>class</th><th>score</th><th>status</th><th>suppressed by (IoU)</th></tr>${[...NM.boxes].sort((a,b)=>b.s-a.s).map(b=>`<tr class="${b.id===NM.cur?'hl':''}"><td>${b.id}</td><td style="color:${CCOL[b.c]}">${b.c}</td><td>${b.s}</td><td>${st[b.st]}</td><td>${b.st==='sup'?`#${b.by} (${f2(b.iouBy)})`:''}</td></tr>`).join('')}</table>`;
+}
+segInit('.nmsS',b=>{NM.sc=b.dataset.s;nmsReset();});
+$('nmsStep').onclick=nmsStep;$('nmsRun').onclick=()=>{let g=0;while(NM.boxes.some(b=>b.st==='pend')&&g++<50)nmsStep();nmsStep();};$('nmsReset').onclick=nmsReset;
+$('nmsThr').oninput=()=>{nmsReset();};$('nmsSc').oninput=()=>{nmsReset();};
+
+/* ======================= TWO STAGE ======================= */
+const EVO=[
+  {n:'R-CNN',y:'2014',fix:'Idea: decompose detection into (1) propose regions, (2) classify each one.',left:'Runs the full CNN on every crop. Thousands of overlapping crops → very slow; the same convolutions are recomputed.',
+   pipe:[['image',''],['selective search<br><span class="small">non-learned, 1+ s, ~thousands of boxes</span>','nolearn'],['crop + warp each region<br><span class="small">to CNN input size</span>',''],['CNN × N<br><span class="small">once per crop!</span>','learn new'],['class + box refine','learn']]},
+  {n:'Fast R-CNN',y:'2015',fix:'Run the conv layers once per image. Crop the ROI from the feature map (receptive-field mapping). ROI pooling makes every crop a fixed size for the FC layers. Trainable end to end, since backprop passes through ROI pooling.',left:'Proposals still come from slow, non-learned selective search.',
+   pipe:[['image',''],['selective search','nolearn'],['CNN × 1<br><span class="small">whole image</span>','learn new'],['project ROIs onto<br>feature map','new'],['ROI pooling<br><span class="small">fixed grid, max</span>','new'],['FC → class + box','learn']]},
+  {n:'Faster R-CNN',y:'2016',fix:'Replace selective search with a learned Region Proposal Network on the same features: anchors, 2k objectness scores + 4k box offsets per cell, keep the top-N. "Use deep learning to do everything." 4 losses.',left:'Many hyper-parameters (30+). The box-coordinate gradient is not well defined, so it uses alternating training. Slower than single-stage.',
+   pipe:[['image',''],['CNN × 1','learn'],['RPN<br><span class="small">anchors → objectness + offsets</span>','learn new'],['top-N ROIs',''],['ROI pooling',''],['FC → class + box','learn']]},
+  {n:'Mask R-CNN',y:'2017',fix:'Add a mask branch: for each ROI, which pixels belong to the object. Detection + segmentation (instance segmentation). Slide shows RoIAlign instead of ROI pooling.',left:'More losses still; about 40–45% COCO mAP in the lecture\'s chart, with newer models like EfficientDet ahead.',
+   pipe:[['image',''],['CNN × 1','learn'],['RPN','learn'],['RoIAlign','new'],['class + box','learn'],['mask head<br><span class="small">28×28 per ROI</span>','learn new']]}];
+let evoSel=0;
+function renderEvo(){
+  $('evo').innerHTML=EVO.map((e,i)=>`<div class="e ${i===evoSel?'on':''}" data-i="${i}"><h4>${i+1}. ${e.n} <span class="small">${e.y}</span></h4><div class="small">${i?'fixes: '+EVO[i-1].left.split('.')[0]:'starting point'}</div></div>`).join('');
+  document.querySelectorAll('#evo .e').forEach(d=>d.onclick=()=>{evoSel=+d.dataset.i;renderEvo();});
+  const e=EVO[evoSel];
+  $('evoBody').innerHTML=`<div class="pipe">${e.pipe.map(([t,c])=>`<div class="blk ${c}">${t}</div>`).join('<span class="ar">→</span>')}</div>
+   <p class="small">green border = learned · red = non-learned · yellow glow = what's new in this version</p>
+   <div class="story"><b>What it does:</b> ${e.fix}</div><div class="bridge"><b>What's still wrong:</b> ${e.left}${evoSel<3?` → <a href="#" id="evoNext">see ${EVO[evoSel+1].n}</a>`:''}</div>
+   <table class="t"><tr><th></th>${EVO.map(x=>`<th>${x.n}</th>`).join('')}</tr>
+   <tr><td>proposals</td><td>selective search</td><td>selective search</td><td><b>RPN (learned)</b></td><td>RPN</td></tr>
+   <tr><td>backbone passes / image</td><td><b>N (one per crop)</b></td><td>1</td><td>1</td><td>1</td></tr>
+   <tr><td>crop happens on</td><td>image pixels</td><td>feature map</td><td>feature map</td><td>feature map</td></tr>
+   <tr><td>fixed-size trick</td><td>warp crop to CNN input</td><td>ROI pooling</td><td>ROI pooling</td><td>RoIAlign</td></tr>
+   <tr><td>losses</td><td>class + box</td><td>class + box</td><td>4 (RPN ×2, head ×2)</td><td>4 + mask</td></tr></table>`;
+  const nx=$('evoNext');if(nx)nx.onclick=ev=>{ev.preventDefault();evoSel++;renderEvo();};
+}
+const PROPS=(()=>{const r=rng(7),out=[];for(let i=0;i<2000;i++){let b;if(r()<0.45){const g=GT[Math.floor(r()*4)].b;const w=g[2]-g[0],h=g[3]-g[1];const s=0.5+r()*0.9;const cx=(g[0]+g[2])/2+(r()-.5)*w*.6,cy=(g[1]+g[3])/2+(r()-.5)*h*.6;b=[cx-w*s/2,cy-h*s/2,cx+w*s/2,cy+h*s/2];}
+  else{const w=20+r()*220,h=20+r()*220,x=r()*(448-w),y=r()*(448-h);b=[x,y,x+w,y+h];}out.push(b.map(v=>Math.max(0,Math.min(448,v))));}return out;})();
+function renderProp(){
+  const n=+$('nProp').value;$('nPropV').textContent=n;const ps=PROPS.slice(0,n);
+  const show=ps.slice(0,Math.min(n,250));
+  $('propScene').innerHTML=scene(show.map(b=>R(b,{stroke:'#7c3aed',sw:1,op:.35})).join(''),400);
+  const area=ps.reduce((t,b)=>t+(b[2]-b[0])*(b[3]-b[1]),0);const mult=area/(448*448);
+  const bg=ps.filter(b=>Math.max(...GT.map(g=>iou(b,g.b)))<0.5).length;
+  $('propOut').innerHTML=`<span class="lbl">proposals:</span> ${n}  (${bg} = ${Math.round(100*bg/n)}% have IoU &lt; 0.5 with every object: background / parts)<br>
+   <span class="lbl">total crop area / image area:</span> ${f2(mult)} → each pixel is convolved about <b>${f2(mult)}×</b> by R-CNN<br>
+   <span class="lbl">full CNN forward passes:</span> R-CNN <span class="res">${n}</span> · Fast R-CNN <span class="res">1</span> (+ ${n} cheap ROI-pool + FC) · Faster R-CNN <span class="res">1</span> (proposals from the RPN on the same features)${n>250?'<br><span class="lbl">(drawing only the first 250 boxes)</span>':''}`;
+}
+$('nProp').oninput=renderProp;
+let maskObj=0;
+function renderMask(){
+  const g=GT[maskObj],b=g.b,N=28,cw=(b[2]-b[0])/N,ch=(b[3]-b[1])/N;let cells='';
+  if($('maskOn').checked)for(let i=0;i<N;i++)for(let j=0;j<N;j++){const x=b[0]+(j+.5)*cw,y=b[1]+(i+.5)*ch;if(inside(g.c,x,y))cells+=`<rect x="${b[0]+j*cw}" y="${b[1]+i*ch}" width="${cw}" height="${ch}" fill="${CCOL[g.c]}" opacity=".55" stroke="#fff" stroke-width=".3"/>`;}
+  let lines='';for(let i=1;i<N;i++)lines+=`M${b[0]+i*cw},${b[1]}V${b[3]}M${b[0]},${b[1]+i*ch}H${b[2]}`;
+  const pad=10;$('maskView').innerHTML=`<svg class="scene" viewBox="${b[0]-pad} ${b[1]-pad} ${b[2]-b[0]+2*pad} ${b[3]-b[1]+2*pad}" width="360" height="${360*(b[3]-b[1]+2*pad)/(b[2]-b[0]+2*pad)}">${SCENE}<path d="${lines}" stroke="#334155" stroke-width=".3" opacity=".4"/>${cells}${R(b,{stroke:'#111',sw:2})}</svg>`;
+}
+segInit('.maskB',b=>{maskObj=+b.dataset.o;renderMask();});$('maskOn').onchange=renderMask;
+
+/* ======================= ROI POOLING ======================= */
+const FM=(()=>{const r=rng(3);return Array.from({length:14},(_,i)=>Array.from({length:14},(_,j)=>{const x=(j+.5)*32,y=(i+.5)*32;const hit=GT.some(g=>inside(g.c,x,y));return Math.floor(r()*40)+(hit?110+Math.floor(r()*90):0);}));})();
+const ROI={b:[...GT[0].b],name:'cat',drag:null};
+function roiCalc(){const b=ROI.b,c1=Math.floor(b[0]/32),r1=Math.floor(b[1]/32),c2=Math.min(13,Math.ceil(b[2]/32)-1),r2=Math.min(13,Math.ceil(b[3]/32)-1);
+  const h=r2-r1+1,w=c2-c1+1;const [H,W]=$('roiOut').value.split(',').map(Number);
+  const bins=[];for(let i=0;i<H;i++)for(let j=0;j<W;j++){const ra=r1+Math.floor(i*h/H),rb=r1+Math.max(Math.floor(i*h/H),Math.ceil((i+1)*h/H)-1),ca=c1+Math.floor(j*w/W),cb=c1+Math.max(Math.floor(j*w/W),Math.ceil((j+1)*w/W)-1);
+    let m=-1,mr=0,mc=0;for(let r=ra;r<=rb;r++)for(let c=ca;c<=cb;c++)if(FM[r][c]>m){m=FM[r][c];mr=r;mc=c;}bins.push({i,j,ra,rb,ca,cb,m,mr,mc});}
+  return {c1,r1,c2,r2,h,w,H,W,bins};}
+function renderROI(){
+  const b=ROI.b.map(Math.round),C=roiCalc();
+  $('roiScene').innerHTML=scene(gridLines(14,448,'#475569',.25)+R(b,{stroke:'#111',sw:3})+R([C.c1*32,C.r1*32,(C.c2+1)*32,(C.r2+1)*32],{stroke:'#7c3aed',sw:2,dash:'6 3'}),360,'roiSvg');
+  const BC=['#fde68a','#bfdbfe','#bbf7d0','#fbcfe8','#ddd6fe','#fed7aa','#a5f3fc','#d9f99d','#fecaca','#e9d5ff','#c7d2fe','#99f6e4'];
+  const binOf=(r,c)=>C.bins.findIndex(x=>r>=x.ra&&r<=x.rb&&c>=x.ca&&c<=x.cb);
+  let fm='';for(let r=0;r<14;r++)for(let c=0;c<14;c++){const bi=binOf(r,c);const isMax=C.bins.some(x=>x.mr===r&&x.mc===c);
+    fm+=`<div style="${bi>=0?`background:${BC[bi%BC.length]};`:'color:#cbd5e1;'}${isMax?'font-weight:800;outline:2px solid #111;outline-offset:-2px;':''}">${FM[r][c]}</div>`;}
+  $('roiFmap').innerHTML=`<div class="fmap" style="grid-template-columns:repeat(14,30px)">${fm}</div>`;
+  $('roiPooled').innerHTML=`<div class="fmap" style="grid-template-columns:repeat(${C.W},40px)">${C.bins.map((x,k)=>`<div style="width:40px;height:34px;font-size:13px;font-weight:700;background:${BC[k%BC.length]}">${x.m}</div>`).join('')}</div>`;
+  $('roiOutTxt').innerHTML=`<span class="lbl">ROI (image px):</span> (${b.join(', ')}) → ÷32 → feature cells cols ${C.c1}…${C.c2}, rows ${C.r1}…${C.r2} = <b>${C.h}×${C.w}</b> region<br>
+   <span class="lbl">split ${C.h}×${C.w} into ${C.H}×${C.W} bins:</span> each bin ≈ ${f2(C.h/C.H)} × ${f2(C.w/C.W)} cells ${C.h%C.H||C.w%C.W?'(not even, so bins differ in size)':'(divides evenly)'}${C.h<C.H||C.w<C.W?' · region smaller than grid, so some cells are reused':''}<br>
+   <span class="lbl">output:</span> ${C.H}×${C.W} = ${C.H*C.W} numbers per channel, <span class="res">always the same size</span> regardless of the ROI`;
+  const svg=$('roiSvg');
+  svg.onpointerdown=e=>{const p=svgPt(e,svg);ROI.drag=p;svg.setPointerCapture(e.pointerId);};
+  svg.onpointermove=e=>{if(!ROI.drag)return;const p=svgPt(e,svg);const a=ROI.drag;if(Math.abs(p.x-a.x)>8&&Math.abs(p.y-a.y)>8){ROI.b=[Math.min(a.x,p.x),Math.min(a.y,p.y),Math.max(a.x,p.x),Math.max(a.y,p.y)].map(v=>Math.max(0,Math.min(447,v)));ROI.live=true;renderROILite();}};
+  svg.onpointerup=()=>{ROI.drag=null;if(ROI.live){ROI.live=false;renderROI();}};
+}
+function renderROILite(){const b=ROI.b;const s=$('roiSvg');const old=s.querySelector('#roiLive');if(old)old.remove();s.insertAdjacentHTML('beforeend',`<g id="roiLive">${R(b,{stroke:'#dc2626',sw:3})}</g>`);}
+$('roiBtns').innerHTML=GT.map((g,i)=>`<button class="seg roiB ${i===0?'on':''}" data-i="${i}">${g.c}</button>`).join(' ');
+segInit('.roiB',b=>{ROI.b=[...GT[+b.dataset.i].b];renderROI();});$('roiOut').onchange=renderROI;
+
+/* ======================= RPN ======================= */
+const RP={pt:{r:7,c:3}};
+function rpnAnchors(r,c){const ns=+$('rpnS').value,nr=+$('rpnR').value;const scales=ns===1?[128]:ns===2?[64,128]:[64,128,256];const ratios=nr===1?[1]:[0.5,1,2];
+  const cx=(c+.5)*32,cy=(r+.5)*32;const out=[];scales.forEach(s=>ratios.forEach(q=>{const w=s/Math.sqrt(q),h=s*Math.sqrt(q);const b=[cx-w/2,cy-h/2,cx+w/2,cy+h/2];let best=0,gi=-1;GT.forEach((g,i)=>{const v=iou(b,g.b);if(v>best){best=v;gi=i;}});out.push({s,q,b,best,gi});}));return out;}
+function renderRPN(){
+  const k=(+$('rpnS').value)*(+$('rpnR').value);const {r,c}=RP.pt;
+  const all=[];for(let i=0;i<14;i++)for(let j=0;j<14;j++)rpnAnchors(i,j).forEach(a=>all.push({...a,i,j}));
+  const bestFor=GT.map((g,gi)=>all.reduce((m,a)=>iou(a.b,g.b)>iou(m.b,g.b)?a:m,all[0]));
+  const key=a=>a.b.join();const bestKeys=new Set(bestFor.map(key));
+  const an=rpnAnchors(r,c).map(a=>({...a,top:bestKeys.has(key(a))}));
+  const isPos=a=>a.best>=0.7||a.top;
+  let ov='';for(let i=0;i<14;i++)for(let j=0;j<14;j++)ov+=`<circle cx="${(j+.5)*32}" cy="${(i+.5)*32}" r="2" fill="#334155" opacity=".5"/>`;
+  bestFor.forEach((a,gi)=>{ov+=`<circle cx="${(a.j+.5)*32}" cy="${(a.i+.5)*32}" r="5" fill="none" stroke="${CCOL[GT[gi].c]}" stroke-width="2.5"/>`;});
+  const col=a=>isPos(a)?'#16a34a':a.best<0.3?'#ef4444':'#94a3b8';
+  const topN=+$('rpnTop').value;$('rpnTopV').textContent=topN;
+  if(topN){const srt=[...all].sort((x,y)=>y.best-x.best);ov+=srt.slice(0,topN).map(a=>R(a.b,{stroke:a.gi>=0?CCOL[GT[a.gi].c]:'#111',sw:1.3,op:.8})).join('');}
+  ov+=an.map(a=>R(a.b,{stroke:col(a),sw:isPos(a)?3.5:1.8,dash:isPos(a)?'':'5 3'})).join('');
+  ov+=`<circle cx="${(c+.5)*32}" cy="${(r+.5)*32}" r="6" fill="#111" stroke="#fff" stroke-width="2"/>`;
+  ov+=an.filter(isPos).map(a=>R(GT[a.gi].b,{stroke:'#16a34a',sw:1.5,dash:'2 2'})).join('');
+  $('rpnScene').innerHTML=scene(ov,448,'rpnSvg');
+  const pos=an.filter(isPos).length;
+  $('rpnOut').innerHTML=`<span class="lbl">anchor point (row ${r}, col ${c}) → image center (${(c+.5)*32}, ${(r+.5)*32})</span><br>
+   k = ${+$('rpnS').value} scales × ${+$('rpnR').value} ratios = <b>${k}</b> anchors here<br>
+   cls layer: 2k = <b>${2*k}</b> scores &nbsp; reg layer: 4k = <b>${4*k}</b> numbers (per position)<br>
+   whole map: 14 × 14 × ${k} = <span class="res">${14*14*k}</span> anchors → ${14*14*2*k} cls + ${14*14*4*k} reg outputs (fixed size!)<br>
+   <span class="lbl">here:</span> ${an.map(a=>`${a.s}px ${a.q===1?'1:1':a.q<1?'2:1 wide':'1:2 tall'} IoU ${f2(a.best)}${a.top?' ★':''}`).join(' · ')}<br>
+   ${pos?`<b style="color:#86efac">${pos} anchor(s) labeled "object"</b>${an.some(a=>a.top&&a.best<0.7)?' (★ = best anchor for that object, positive even below 0.7)':''} → the reg layer learns offsets that move them onto the dotted GT box`:'no positive anchor here → all background or ignored'}<br>
+   <span class="lbl">best anchor per object (ringed points):</span> ${bestFor.map((a,gi)=>`${GT[gi].c} @ (${a.i},${a.j}) IoU ${f2(iou(a.b,GT[gi].b))}`).join(' · ')}<br>
+   <span class="lbl">Anchors rarely fit well (IoU often &lt; 0.7), which is why the 4k regression outputs exist.</span>`;
+  $('rpnSvg').onclick=e=>{const p=svgPt(e,$('rpnSvg'));RP.pt={r:Math.min(13,Math.floor(p.y/32)),c:Math.min(13,Math.floor(p.x/32))};renderRPN();};
+}
+['rpnS','rpnR'].forEach(id=>$(id).onchange=renderRPN);$('rpnTop').oninput=renderRPN;
+
+/* ======================= EVAL ======================= */
+const EV={cat:{n:5,d:[[.95,.82,1],[.91,.74,2],[.88,.35,3],[.80,.68,3],[.76,.71,1],[.70,.58,4],[.62,.10,null],[.55,.20,null],[.40,.66,5],[.30,.05,null]]},
+          dog:{n:3,d:[[.90,.80,1],[.85,.30,null],[.70,.66,2],[.60,.55,2],[.50,.77,3],[.20,.10,null]]},
+          car:{n:4,d:[[.97,.90,1],[.93,.85,2],[.80,.60,3],[.65,.20,null],[.45,.77,4],[.35,.40,4]]}};
+let evCls='cat';
+function evalClass(cls,thr){const E=EV[cls];const d=[...E.d].sort((a,b)=>b[0]-a[0]);const used=new Set();let tp=0,fp=0;
+  const rows=d.map(([s,v,g],k)=>{let ok=false,why='';if(g==null)why='background';else if(!(v>thr))why='IoU too low';else if(used.has(g))why='duplicate (GT already claimed)';else{ok=true;used.add(g);}
+    ok?tp++:fp++;return {k:k+1,s,v,g,ok,why,tp,fp,P:tp/(tp+fp),Rc:tp/E.n};});
+  const p11=[];for(let i=0;i<=10;i++){const r=i/10;const cand=rows.filter(x=>x.Rc>=r-1e-9).map(x=>x.P);p11.push({r,p:cand.length?Math.max(...cand):0});}
+  return {rows,p11,ap:p11.reduce((t,x)=>t+x.p,0)/11,n:E.n};}
+function renderEval(){
+  const thr=+$('evThr').value,sc=+$('evSc').value;$('evScV').textContent=sc.toFixed(2);
+  const R_=evalClass(evCls,thr);
+  $('evTable').innerHTML=`<p>ground-truth <b>${evCls}</b> boxes in the dataset: <b>${R_.n}</b></p><table class="t"><tr><th>rank</th><th>score</th><th>IoU</th><th>GT id</th><th>TP / FP</th><th>cum TP</th><th>cum FP</th><th>precision</th><th>recall</th></tr>${R_.rows.map(x=>`<tr class="${x.s>=sc?'hl':''}"><td>${x.k}</td><td>${x.s.toFixed(2)}</td><td>${x.v.toFixed(2)}</td><td>${x.g??'–'}</td><td style="color:${x.ok?'#16a34a':'#dc2626'}">${x.ok?'TP':'FP <span class="small">'+x.why+'</span>'}</td><td>${x.tp}</td><td>${x.fp}</td><td>${f3(x.P)}</td><td>${f3(x.Rc)}</td></tr>`).join('')}</table><p class="small">Highlighted rows = detections kept at the current score threshold.</p>`;
+  const kept=R_.rows.filter(x=>x.s>=sc);const last=kept[kept.length-1];
+  $('evOp').innerHTML=last?`keep score ≥ ${sc.toFixed(2)}: ${kept.length} detections → TP ${last.tp}, FP ${last.fp}, FN ${R_.n-last.tp}<br>precision = ${last.tp}/${last.tp+last.fp} = <span class="res">${f3(last.P)}</span> &nbsp; recall = ${last.tp}/${R_.n} = <span class="res">${f3(last.Rc)}</span><br><span class="lbl">lower the threshold → recall ↑, precision usually ↓. Sweeping it traces the PR curve.</span>`:'no detections kept → precision undefined, recall 0';
+  // PR plot
+  const X=v=>40+v*280,Y=v=>285-v*260;let g=`<rect x="40" y="25" width="280" height="260" fill="#f8fafc" stroke="#cbd5e1"/>`;
+  for(let i=0;i<=10;i++){g+=`<line x1="${X(i/10)}" y1="285" x2="${X(i/10)}" y2="289" stroke="#64748b"/>`;if(i%2===0)g+=`<text x="${X(i/10)}" y="302" font-size="10" text-anchor="middle">${i/10}</text><text x="34" y="${Y(i/10)+3}" font-size="10" text-anchor="end">${i/10}</text>`;}
+  g+=`<text x="180" y="316" font-size="11" text-anchor="middle">recall</text><text x="12" y="155" font-size="11" transform="rotate(-90 12 155)" text-anchor="middle">precision</text>`;
+  g+=`<polyline points="${R_.rows.map(x=>`${X(x.Rc)},${Y(x.P)}`).join(' ')}" fill="none" stroke="#2563eb" stroke-width="2"/>`;
+  g+=R_.rows.map(x=>`<circle cx="${X(x.Rc)}" cy="${Y(x.P)}" r="${x.s>=sc&&x===last?6:3.5}" fill="${x.ok?'#16a34a':'#dc2626'}" stroke="${x===last?'#111':'none'}" stroke-width="2"/>`).join('');
+  let env='';R_.p11.forEach((q,i)=>{env+=`${i?'L':'M'}${X(q.r)},${Y(q.p)}`;});g+=`<path d="${env}" fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  g+=R_.p11.map(q=>`<rect x="${X(q.r)-3}" y="${Y(q.p)-3}" width="6" height="6" fill="#f59e0b"/>`).join('');
+  g+=`<text x="${X(1)-4}" y="40" font-size="10" text-anchor="end" fill="#475569">ideal system: top-right corner</text>`;
+  $('prSvg').innerHTML=g;
+  $('ev11').innerHTML=`<table class="t" style="font-size:12px"><tr><th>recall r</th>${R_.p11.map(q=>`<td>${q.r.toFixed(1)}</td>`).join('')}</tr><tr><th>p<sub>interp</sub></th>${R_.p11.map(q=>`<td>${f2(q.p)}</td>`).join('')}</tr></table>
+   <div class="terms" style="margin-top:6px">AP(${evCls}) = (${R_.p11.map(q=>f2(q.p)).join(' + ')}) / 11 = <span class="res">${f3(R_.ap)}</span></div><p class="small">blue = raw PR points (green TP, red FP) · orange = interpolated 11 points</p>`;
+  const aps=Object.keys(EV).map(c=>({c,ap:evalClass(c,thr).ap}));const m=aps.reduce((t,x)=>t+x.ap,0)/aps.length;
+  $('mapOut').innerHTML=`<div class="terms">mAP @ IoU ${thr} = mean over classes = (${aps.map(x=>`AP<sub>${x.c}</sub> ${f3(x.ap)}`).join(' + ')}) / ${aps.length} = <span class="res">${f3(m)}</span> &nbsp; <span class="lbl">(COCO would average over 80 classes)</span></div>`;
+}
+$('evClsBtns').innerHTML=Object.keys(EV).map(c=>`<button class="seg evB ${c===evCls?'on':''}" data-c="${c}">${c}</button>`).join(' ');
+segInit('.evB',b=>{evCls=b.dataset.c;renderEval();});$('evThr').onchange=renderEval;$('evSc').oninput=renderEval;
+
+/* ======================= PRACTICE ======================= */
+const miniM=M=>`<span class="mini" style="grid-template-columns:repeat(${M[0].length},auto)">${M.flat().map(v=>`<div>${v}</div>`).join('')}</span>`;
+const PROBS=[
+ {t:'P1 · IoU by hand',q:'Boxes are (x1, y1, x2, y2). Give IoU to 3 decimals.',type:'num',items:[['(0,0,4,4) vs (1,1,5,5)',9/23],['(0,0,10,10) vs (5,0,15,10)',50/150],['(2,1,6,5) vs (4,3,8,7)',4/28],['(0,0,6,4) vs (1,1,3,3)',4/24]],tol:0.005,
+  sol:'(1) I = 3×3 = 9, U = 16+16−9 = 23 → 0.391<br>(2) I = 5×10 = 50, U = 100+100−50 = 150 → 0.333<br>(3) I = 2×2 = 4, U = 16+16−4 = 28 → 0.143<br>(4) B is inside A: I = 2×2 = 4, U = 24 + 4 − 4 = 24 → 0.167. A small box inside a big one still has low IoU.',go:'iou'},
+ {t:'P2 · YOLO output tensor',q:'YOLO with grid S, B boxes per cell, C classes. Give the depth (numbers per cell) and total output numbers.',type:'num',items:[['S=7, B=2, C=20: depth',30],['S=7, B=2, C=20: total numbers',1470],['S=7, B=2, C=20: candidate boxes',98],['S=7, B=3, C=10: depth',25],['S=13, B=2, C=80: total numbers',13*13*90]],tol:0,
+  sol:'depth = B·5 + C (each box: x, y, w, h, confidence; one class distribution per cell).<br>7×7×30 = 1470 numbers; boxes = 7·7·2 = 98.<br>3·5 + 10 = 25.<br>13·13·(2·5+80) = 169·90 = 15210.',go:'single'},
+ {t:'P3 · SSD box count',q:'Count the fixed number of predictions.',type:'num',items:[['SSD300: maps 38,19,10,5,3,1 with 4,6,6,6,4,4 anchors',8732],['maps 10,5,3,1 with 6,6,4,4 anchors',790],['a single 8×8 map with 5 anchors per cell',320]],tol:0,
+  sol:'38²·4 + 19²·6 + 10²·6 + 5²·6 + 3²·4 + 1²·4 = 5776 + 2166 + 600 + 150 + 36 + 4 = 8732<br>10²·6 + 5²·6 + 3²·4 + 1²·4 = 600 + 150 + 36 + 4 = 790<br>8²·5 = 320',go:'single'},
+ {t:'P4 · RPN output sizes',q:'Faster R-CNN RPN with k anchors per position on a 40×60 feature map.',type:'num',items:[['k = 9: cls outputs per position',18],['k = 9: reg outputs per position',36],['k = 9: total anchors on the map',21600],['k = 6 (2 scales × 3 ratios): total reg outputs on the map',40*60*24]],tol:0,
+  sol:'cls = 2k = 18 (object / not-object per anchor), reg = 4k = 36 (4 offsets per anchor).<br>anchors = 40·60·9 = 21600.<br>reg total = 40·60·4·6 = 57600.',go:'rpn'},
+ {t:'P5 · ROI pooling',q:'Max-pool this 4×4 feature region into a 2×2 grid.',type:'grid',M:[[1,8,3,2],[4,6,7,9],[5,0,2,1],[3,12,4,6]],ans:[[8,9],[12,6]],
+  sol:'Bins (rows 0–1 | 2–3) × (cols 0–1 | 2–3): max{1,8,4,6} = 8, max{3,2,7,9} = 9, max{5,0,3,12} = 12, max{2,1,4,6} = 6.',go:'roi'},
+ {t:'P6 · ROI pooling window size',q:'A feature region is ROI-pooled to a 4×3 grid (4 rows × 3 cols). How many cells is each bin?',type:'num',items:[['region 8×6: bin height',2],['region 8×6: bin width',2],['region 12×9: bin height',3],['region 12×9: bin width',3],['output size for any region (number of values per channel)',12]],tol:0,
+  sol:'8/4 = 2, 6/3 = 2 → 2×2 bins. 12/4 = 3, 9/3 = 3 → 3×3 bins. The output is always 4×3 = 12. That fixed size is the whole point.',go:'roi'},
+ {t:'P7 · NMS by hand',q:'Same-class boxes with scores A 0.9, B 0.8, C 0.7, D 0.6. Pairwise IoU: A–B 0.7, A–C 0.2, A–D 0.1, B–C 0.6, B–D 0.3, C–D 0.55. Which boxes survive?',type:'check',parts:[{lab:'IoU threshold 0.5',ans:['A','C']},{lab:'IoU threshold 0.6',ans:['A','C','D']}],
+  sol:'Threshold 0.5: keep A → remove B (0.7 > 0.5); C (0.2) and D (0.1) stay. Next best is C → keep, remove D (0.55 > 0.5). Result A, C. Trap: B–C = 0.6 doesn\'t matter, because B was already gone.<br>Threshold 0.6: keep A → remove B (0.7). Keep C → D has 0.55 ≤ 0.6, so it stays. Keep D. Result A, C, D.',go:'nms'},
+ {t:'P8 · Precision, recall, AP',q:'A class has 3 ground-truth objects. Detections sorted by score are: TP, FP, TP, FP, TP.',type:'num',items:[['precision after the 2nd detection',0.5],['recall after the 3rd detection',2/3],['precision after all 5',0.6],['11-point interpolated AP',8.4/11]],tol:0.005,
+  sol:'Cumulative (P, R): (1, 1/3), (1/2, 1/3), (2/3, 2/3), (2/4, 2/3), (3/5, 1).<br>p_interp(r) = max precision at recall ≥ r: r = 0, .1, .2, .3 → 1; r = .4, .5, .6 → 2/3; r = .7, .8, .9, 1 → 0.6.<br>AP = (4·1 + 3·0.667 + 4·0.6)/11 = 8.4/11 = 0.764.',go:'eval'},
+ {t:'P9 · mAP and TP/FP rules',q:'',type:'num',items:[['APs: cat 0.76, dog 0.50, car 0.90. mAP = ?',0.72],['A GT is matched by detections with IoU 0.8 (score 0.9) and 0.7 (score 0.95). How many TPs? (threshold 0.5)',1],['A detection overlaps a GT with IoU exactly 0.5 (lecture rule "IoU > 0.5"). TP = 1, FP = 0?',0]],tol:0.005,
+  sol:'mAP = (0.76 + 0.50 + 0.90)/3 = 0.72.<br>Only one detection may claim a GT. The higher-scoring one (0.95) is processed first and becomes the TP; the other is a duplicate FP.<br>IoU must be &gt; 0.5, so exactly 0.5 is an FP → 0.',go:'eval'},
+ {t:'P10 · Concepts',type:'mcq',mcq:[
+   {q:'What problem do anchors (SSD, Faster R-CNN RPN) solve?',o:['They make the output a fixed size even though the number of objects varies','They replace NMS','They make the network learn faster on ImageNet'],a:0,why:'Fixed grid × fixed k boxes = fixed output; most become background.'},
+   {q:'Main inefficiency of R-CNN fixed by Fast R-CNN?',o:['Selective search is slow','The CNN is run separately on thousands of overlapping crops','It uses MSE for boxes'],a:1,why:'Fast R-CNN runs the conv layers once and crops in feature-map space. Selective search being slow is what Faster R-CNN fixes.'},
+   {q:'Why is ROI pooling needed?',o:['To remove duplicate boxes','FC layers need a fixed-size input but ROIs differ in size','To compute IoU'],a:1,why:'Fixed grid (e.g. 4×3) + max per bin → same size for every ROI.'},
+   {q:'Which part of Fast R-CNN is still NOT learned?',o:['ROI pooling weights','The region proposals (selective search)','The box-regression head'],a:1,why:'ROI pooling has no weights, but you can backprop through it. The proposals come from a non-learned algorithm.'},
+   {q:'How many losses does Faster R-CNN have?',o:['2','4','5'],a:1,why:'RPN objectness, RPN box, head class, head box. Mask R-CNN adds a mask loss, making 5.'},
+   {q:'YOLO vs SSD (per the lecture)?',o:['YOLO is single-scale with a custom architecture, so it\'s faster','YOLO uses region proposals','YOLO predicts from 6 feature maps'],a:0,why:'SSD predicts from several feature maps; YOLO uses one grid.'},
+   {q:'Why can\'t you easily backprop to the RPN\'s box coordinates?',o:['The boxes are integers','Changing the box changes which features are cropped, a non-differentiable selection','The RPN has no parameters'],a:1,why:'Workaround: alternating training (RPN, then head, …).'},
+   {q:'What does Mask R-CNN add on top of Faster R-CNN?',o:['A per-ROI pixel mask (instance segmentation)','A second RPN','Multi-scale image input'],a:0,why:'Mask head + mask loss; RoIAlign shown on the slide.'},
+   {q:'In a multi-headed detector, how do the classification and box losses affect the shared trunk?',o:['Only the classification loss reaches the trunk','Their gradients are summed (each loss weighted by a hyper-parameter)','They are trained in separate networks'],a:1,why:'The trunk output has two outgoing edges → gradients add.'}],go:'two'}
+];
+const SCORE={};
+function updScore(){const ok=Object.values(SCORE).filter(Boolean).length;$('score').innerHTML=`<b>Score:</b> ${ok} / ${PROBS.length} problems fully correct. Use "Open the visual" to look at the matching tab.`;}
+const near=(a,b,t)=>a!==''&&!isNaN(+a)&&Math.abs(+a-b)<=t+1e-9;
+function renderProbs(){const host=$('probs');host.innerHTML='';
+ PROBS.forEach((P,idx)=>{const card=document.createElement('div');card.className='card prob';
+  let h=`<h2>${P.t}</h2>${P.q?`<p>${P.q}</p>`:''}`;
+  if(P.type==='num')h+=`<table class="t">${P.items.map((it,k)=>`<tr><td style="text-align:left">${it[0]}</td><td><input class="one" data-k="${k}"></td></tr>`).join('')}</table>`;
+  if(P.type==='grid')h+=`<div>region ${miniM(P.M)} → </div><div class="ansgrid" style="grid-template-columns:repeat(${P.ans[0].length},56px);margin-top:6px">${P.ans.flat().map((_,k)=>`<input data-k="${k}">`).join('')}</div>`;
+  if(P.type==='check')h+=P.parts.map((pt,k)=>`<div style="margin:4px 0"><b>${pt.lab}:</b> ${['A','B','C','D'].map(L=>`<label style="margin-right:10px"><input type="checkbox" data-p="${k}" value="${L}"> ${L}</label>`).join('')}</div>`).join('');
+  if(P.type==='mcq')h+=P.mcq.map((m,k)=>`<div class="mcq" style="margin-bottom:8px"><b>${k+1}. ${m.q}</b>${m.o.map((o,oi)=>`<label><input type="radio" name="q${idx}_${k}" value="${oi}"> ${o}</label>`).join('')}<div class="small why" data-k="${k}" style="display:none"></div></div>`).join('');
+  h+=`<div style="margin-top:8px"><button class="primary" data-a="chk">Check</button> <button data-a="sol">Show solution</button> <button data-a="go">Open the visual</button><span class="fb"></span></div><div class="sol"></div>`;
+  card.innerHTML=h;host.appendChild(card);const fb=card.querySelector('.fb'),sol=card.querySelector('.sol');
+  card.querySelector('[data-a=chk]').onclick=()=>{let ok=true;
+   if(P.type==='num')card.querySelectorAll('input.one').forEach(inp=>{const g=near(inp.value,P.items[+inp.dataset.k][1],P.tol);inp.className='one '+(g?'ok':'bad');ok=ok&&g;});
+   if(P.type==='grid')card.querySelectorAll('.ansgrid input').forEach(inp=>{const k=+inp.dataset.k;const g=near(inp.value,P.ans.flat()[k],0);inp.className=g?'ok':'bad';ok=ok&&g;});
+   if(P.type==='check')P.parts.forEach((pt,k)=>{const ch=[...card.querySelectorAll(`input[data-p="${k}"]:checked`)].map(x=>x.value).sort().join();ok=ok&&ch===pt.ans.join();});
+   if(P.type==='mcq')P.mcq.forEach((m,k)=>{const c=card.querySelector(`input[name=q${idx}_${k}]:checked`);const g=c&&+c.value===m.a;ok=ok&&g;const w=card.querySelector(`.why[data-k="${k}"]`);w.style.display='block';w.style.color=g?'var(--ok)':'var(--bad)';w.textContent=(g?'✓ ':'✗ ')+m.why;});
+   fb.textContent=ok?'✓ all correct':'✗ not quite';fb.className='fb '+(ok?'ok':'bad');SCORE[idx]=ok;updScore();};
+  card.querySelector('[data-a=sol]').onclick=()=>{if(!sol.innerHTML)sol.innerHTML=`<div class="terms">${P.sol||P.mcq.map((m,k)=>`${k+1}. ${m.o[m.a]}`).join('<br>')}</div>`;sol.classList.toggle('on');};
+  card.querySelector('[data-a=go]').onclick=()=>goTab(P.go);
+ });updScore();}
+
+/* ======================= plumbing ======================= */
+function goTab(t){document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.id==='t-'+t));window.scrollTo(0,0);}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>goTab(b.dataset.t));
+document.querySelector('.nmsS[data-s=std]').classList.add('on');document.querySelector('.maskB[data-o="0"]').classList.add('on');
+SS.cell={r:4,c:1};renderSingle();renderIoU();nmsReset();renderEvo();renderProp();renderMask();renderROI();renderRPN();renderEval();renderProbs();
+</script>
+</body>
+</html>
